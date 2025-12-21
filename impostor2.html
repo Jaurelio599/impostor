@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Juego del Impostor</title>
+
+  <style>
+    body{
+      font-family: system-ui, Arial, sans-serif;
+      margin: 24px;
+      background:#0f172a;
+      color:#e2e8f0;
+      display:flex;
+      justify-content:center;
+    }
+    .card{
+      width:700px;
+      background:#111827;
+      border:1px solid #1f2937;
+      border-radius:16px;
+      padding:20px;
+    }
+    h1{margin-top:0}
+
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:end;
+    }
+
+    label{
+      font-size:13px;
+      color:#94a3b8;
+      display:block;
+      margin-bottom:6px;
+    }
+
+    input{
+      padding:8px 10px;
+      border-radius:8px;
+      border:1px solid #334155;
+      background:#0b1220;
+      color:#e2e8f0;
+    }
+
+    button{
+      padding:10px 14px;
+      border-radius:10px;
+      border:none;
+      color:white;
+      font-weight:600;
+      cursor:pointer;
+    }
+    button:disabled{
+      opacity:.5;
+      cursor:not-allowed;
+    }
+
+    /* === CLASES PEDIDAS === */
+    .startbtn{
+      background-color:green;
+    }
+    .revealBtn{
+      background-color:red;
+    }
+    .nextBtn{
+      background-color:blue;
+    }
+    .resetBtn{
+      background-color:grey;
+    }
+
+    .status{
+      margin-top:16px;
+      padding:12px;
+      border-radius:12px;
+      background:#0b1220;
+      border:1px solid #334155;
+      display:flex;
+      justify-content:space-between;
+      flex-wrap:wrap;
+      gap:10px;
+    }
+
+    .big{
+      margin-top:16px;
+      padding:20px;
+      border-radius:14px;
+      background:#0b1220;
+      border:1px solid #334155;
+      min-height:120px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      font-size:22px;
+      font-weight:800;
+    }
+
+    .pill{
+      font-size:12px;
+      padding:4px 10px;
+      border-radius:999px;
+      background:#020617;
+      border:1px solid #334155;
+    }
+  </style>
+</head>
+
+<body>
+<div class="card">
+  <h1>Juego del Impostor</h1>
+
+  <div class="row">
+    <div>
+      <label for="players">Cantidad de jugadores</label>
+      <input id="players" type="number" min="3" max="50" value="7">
+    </div>
+
+    <button id="startBtn" class="startbtn">Iniciar</button>
+    <button id="revealBtn" class="revealBtn" disabled>Revelar</button>
+    <button id="nextBtn" class="nextBtn" disabled>Ocultar y Siguiente</button>
+    <button id="resetBtn" class="resetBtn">Reiniciar</button>
+  </div>
+
+  <div class="status">
+    <span class="pill" id="roundInfo">Sin partida</span>
+    <span class="pill" id="playerInfo">Jugador -</span>
+    <span class="pill" id="impInfo">Impostores -</span>
+  </div>
+
+  <div class="big" id="screen">
+    Ingresa jugadores y presiona <b>Iniciar</b>.
+  </div>
+</div>
+
+<script>
+  const CHARACTERS = [
+    "Mickey Mouse","Minnie Mouse","Donald Duck","Goofy","Simba",
+    "Ariel","Aladdin","Genio","Elsa","Anna",
+    "Olaf","Woody","Buzz Lightyear","Stitch","Mulan",
+    "Moana","Hércules","Peter Pan","Campanita","Scar"
+  ];
+
+  const playersInput = document.getElementById("players");
+  const startBtn = document.getElementById("startBtn");
+  const revealBtn = document.getElementById("revealBtn");
+  const nextBtn = document.getElementById("nextBtn");
+  const resetBtn = document.getElementById("resetBtn");
+
+  const screen = document.getElementById("screen");
+  const roundInfo = document.getElementById("roundInfo");
+  const playerInfo = document.getElementById("playerInfo");
+  const impInfo = document.getElementById("impInfo");
+
+  let totalPlayers = 0;
+  let currentPlayer = 1;
+  let impostors = new Set();
+  let impostorCount = 0;
+  let character = "";
+  let revealed = false;
+
+  function rand(min,max){
+    return Math.floor(Math.random()*(max-min+1))+min;
+  }
+
+  function startGame(){
+    totalPlayers = Number(playersInput.value);
+    if(totalPlayers < 3){
+      screen.textContent = "Mínimo 3 jugadores";
+      return;
+    }
+
+    impostorCount = totalPlayers > 6 ? 2 : 1;
+    impostors.clear();
+
+    while(impostors.size < impostorCount){
+      impostors.add(rand(1,totalPlayers));
+    }
+
+    character = CHARACTERS[rand(0,CHARACTERS.length-1)];
+    currentPlayer = 1;
+    revealed = false;
+
+    roundInfo.textContent = "Partida activa";
+    playerInfo.textContent = `Jugador ${currentPlayer}/${totalPlayers}`;
+    impInfo.textContent = `Impostores ${impostorCount}`;
+
+    screen.innerHTML = "Pasa el dispositivo al <b>Jugador 1</b> y presiona <b>Revelar</b>.";
+
+    revealBtn.disabled = false;
+    nextBtn.disabled = true;
+  }
+
+  function reveal(){
+    if(impostors.has(currentPlayer)){
+      screen.innerHTML = "<div>🚨<br>ERES EL IMPOSTOR</div>";
+    }else{
+      screen.innerHTML = `<div>✅<br>Tu personaje es:<br><b>${character}</b></div>`;
+    }
+    revealed = true;
+    revealBtn.disabled = true;
+    nextBtn.disabled = false;
+  }
+
+  function next(){
+    if(!revealed) return;
+
+    if(currentPlayer >= totalPlayers){
+      screen.innerHTML = "Todos ya vieron su rol.<br><b>¡A jugar!</b>";
+      revealBtn.disabled = true;
+      nextBtn.disabled = true;
+      return;
+    }
+
+    currentPlayer++;
+    revealed = false;
+    playerInfo.textContent = `Jugador ${currentPlayer}/${totalPlayers}`;
+    screen.innerHTML = `Pasa el dispositivo al <b>Jugador ${currentPlayer}</b> y presiona <b>Revelar</b>.`;
+    revealBtn.disabled = false;
+    nextBtn.disabled = true;
+  }
+
+  function reset(){
+    totalPlayers = 0;
+    currentPlayer = 1;
+    impostors.clear();
+    screen.innerHTML = "Ingresa jugadores y presiona <b>Iniciar</b>.";
+    roundInfo.textContent = "Sin partida";
+    playerInfo.textContent = "Jugador -";
+    impInfo.textContent = "Impostores -";
+    revealBtn.disabled = true;
+    nextBtn.disabled = true;
+  }
+
+  startBtn.onclick = startGame;
+  revealBtn.onclick = reveal;
+  nextBtn.onclick = next;
+  resetBtn.onclick = reset;
+</script>
+</body>
+</html>
