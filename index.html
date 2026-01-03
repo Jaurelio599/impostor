@@ -1,610 +1,146 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Juego del Impostor</title>
-  <style>
-    :root{
-      --bg:#0b0f14;
-      --card:#121826;
-      --muted:#8ea0b5;
-      --text:#e7eef7;
-      --line:#233044;
-      --shadow: 0 10px 30px rgba(0,0,0,.35);
-    }
-    *{ box-sizing:border-box; }
-    body{
-      margin:0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      background: radial-gradient(1200px 700px at 20% -10%, #17223a 0%, transparent 55%),
-                  radial-gradient(1200px 700px at 120% 10%, #1e1533 0%, transparent 55%),
-                  var(--bg);
-      color:var(--text);
-      min-height:100vh;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:16px;
-    }
-    .app{
-      width:min(980px, 100%);
-      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
-      border:1px solid var(--line);
-      border-radius:18px;
-      box-shadow:var(--shadow);
-      overflow:hidden;
-    }
-    header{
-      padding:18px 16px;
-      border-bottom:1px solid var(--line);
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      align-items:center;
-      justify-content:space-between;
-    }
-    header h1{
-      font-size:18px;
-      margin:0;
-      letter-spacing:.2px;
-    }
-    header p{
-      margin:0;
-      color:var(--muted);
-      font-size:13px;
-    }
-    .content{
-      padding:16px;
-      display:grid;
-      grid-template-columns: 1fr;
-      gap:14px;
-    }
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Centro de Juegos</title>
 
-    .panel{
-      background: rgba(0,0,0,.18);
-      border:1px solid var(--line);
-      border-radius:14px;
-      padding:14px;
-    }
+<style>
+:root{
+  --bg:#0b1c2d;
+  --panel:#081421;
+  --card:#123456;
+  --accent:#1e90ff;
+  --text:#eef6ff;
+  --muted:#9fb5c9;
+}
 
-    .row{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      align-items:flex-end;
-    }
-    label{
-      display:flex;
-      flex-direction:column;
-      gap:6px;
-      font-size:12px;
-      color:var(--muted);
-    }
-    input{
-      width:140px;
-      max-width:100%;
-      padding:10px 10px;
-      border-radius:10px;
-      border:1px solid var(--line);
-      background:#0f1522;
-      color:var(--text);
-      outline:none;
-    }
-    input:focus{
-      border-color:#3b82f6;
-      box-shadow: 0 0 0 3px rgba(59,130,246,.18);
-    }
+*{ box-sizing:border-box; }
 
-    .btns{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-    }
-    button{
-      border:none;
-      color:white;
-      padding:10px 12px;
-      border-radius:10px;
-      cursor:pointer;
-      font-weight:600;
-      letter-spacing:.2px;
-      transition: transform .05s ease, filter .15s ease;
-    }
-    button:active{ transform: translateY(1px); }
-    button:disabled{
-      opacity:.55;
-      cursor:not-allowed;
-      filter: grayscale(.3);
-    }
+body{
+  margin:0;
+  min-height:100vh;
+  font-family: system-ui, Segoe UI, Roboto, Arial;
+  background: radial-gradient(circle at top, #102a44, #050c14);
+  color:var(--text);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
 
-    /* Tus clases */
-    .startbtn{ background-color:green; }
-    .revealBtn{ background-color:red; }
-    .nextBtn{ background-color:blue; }
-    .resetBtn{ background-color:grey; }
+.container{
+  width:100%;
+  max-width:1000px;
+  padding:30px;
+}
 
-    .game{
-      display:grid;
-      grid-template-columns: 1.1fr .9fr;
-      gap:14px;
-    }
-    @media (max-width: 860px){
-      .game{ grid-template-columns:1fr; }
-      input{ width:100%; }
-    }
+header{
+  text-align:center;
+  margin-bottom:40px;
+}
 
-    .status{
-      display:flex;
-      flex-direction:column;
-      gap:8px;
-    }
-    .pill{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding:8px 10px;
-      border-radius:999px;
-      border:1px solid var(--line);
-      background: rgba(255,255,255,.04);
-      width:fit-content;
-      color:var(--muted);
-      font-size:13px;
-    }
+header h1{
+  margin:0;
+  font-size:42px;
+  font-weight:900;
+}
 
-    .card{
-      background: rgba(255,255,255,.03);
-      border:1px solid var(--line);
-      border-radius:14px;
-      padding:14px;
-      display:flex;
-      flex-direction:column;
-      gap:12px;
-      min-height:320px;
-    }
+header p{
+  margin:10px 0 0;
+  color:var(--muted);
+  font-size:16px;
+}
 
-    .topControls{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      align-items:center;
-      justify-content:flex-start;
-    }
+.menu{
+  display:grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap:24px;
+}
 
-    .who{
-      font-size:13px;
-      color:var(--muted);
-    }
-    .big{
-      font-size:28px;
-      margin:0;
-      line-height:1.15;
-      letter-spacing:.2px;
-    }
-    .hint{
-      color:var(--muted);
-      font-size:13px;
-      margin:0;
-    }
+.card{
+  background: linear-gradient(180deg, #143a5c, #0c2136);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:18px;
+  padding:26px;
+  text-align:center;
+  cursor:pointer;
+  transition: transform .2s ease, box-shadow .2s ease;
+  text-decoration:none;
+  color:inherit;
+}
 
-    .imgWrap{
-      display:flex;
-      gap:12px;
-      align-items:flex-start;
-      flex-wrap:wrap;
-    }
-    .charImg{
-      width:min(360px, 100%);
-      background:#0f1522;
-      border:1px solid var(--line);
-      border-radius:14px;
-      overflow:hidden;
-      position:relative;
-      min-height:220px; /* para que el placeholder tenga espacio */
-    }
-    .charImg img{
-      width:100%;
-      height:auto;           /* ajuste a la relación de aspecto real */
-      object-fit:contain;    /* evita recortes */
-      display:block;
-    }
-    .placeholder{
-      position:absolute;
-      inset:0;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:14px;
-      text-align:center;
-      color:var(--muted);
-      font-size:13px;
-      line-height:1.35;
-    }
+.card:hover{
+  transform: translateY(-6px) scale(1.02);
+  box-shadow: 0 18px 40px rgba(0,0,0,.45);
+}
 
-    .rightPanel{
-      display:flex;
-      flex-direction:column;
-      gap:12px;
-    }
-    .list{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:10px;
-    }
-    @media (max-width: 520px){
-      .list{ grid-template-columns:1fr; }
-      .big{ font-size:24px; }
-    }
+.icon{
+  font-size:56px;
+  margin-bottom:12px;
+}
 
-    .mini{
-      border:1px solid var(--line);
-      border-radius:12px;
-      background: rgba(255,255,255,.03);
-      padding:10px;
-      color:var(--muted);
-      font-size:13px;
-    }
-    .mini strong{ color:var(--text); }
+.card h2{
+  margin:10px 0 6px;
+  font-size:24px;
+}
 
-    .note{
-      color:var(--muted);
-      font-size:12px;
-      margin:0;
-    }
-  </style>
+.card p{
+  margin:0;
+  font-size:14px;
+  color:var(--muted);
+}
+
+footer{
+  margin-top:40px;
+  text-align:center;
+  font-size:13px;
+  color:var(--muted);
+}
+</style>
 </head>
+
 <body>
-  <div class="app">
-    <header>
-      <div>
-        <img src="charactersImages/ben.jpg" alt="">
-        <h1>Juego del Impostor</h1>
-        <p>1 impostor (≤ 6 jugadores) • 2 impostores (> 6 jugadores)</p>
-        <button>soy la adriaa</button>
-      </div>
-      <div class="pill" id="phasePill">Fase: Configuración</div>
-    </header>
 
-    <div class="content">
-      <section class="panel">
-        <div class="row">
-          <label>
-            Cantidad de jugadores
-            <input id="playersInput" type="number" min="3" max="30" value="7" />
-          </label>
+<div class="container">
 
-          <div class="btns">
-            <button id="startBtn" class="startbtn">Iniciar partida</button>
-            <button id="resetBtn" class="resetBtn" disabled>Reiniciar</button>
-          </div>
-        </div>
-        <p class="note">
-          Tip: coloca tus imágenes en <strong>charactersImages/</strong> con nombres tipo <strong>goku.jpg</strong>, <strong>spider-man.jpg</strong>, etc.
-        </p>
-      </section>
+  <header>
+    <h1>🎮 Centro de Juegos</h1>
+    <p>Selecciona un juego para comenzar</p>
+  </header>
 
-      <section class="game">
-        <div class="card">
-          <!-- Botones SIEMPRE arriba de la imagen -->
-          <div class="topControls">
-            <button id="revealBtn" class="revealBtn" disabled>Revelar</button>
+  <section class="menu">
 
-            <!-- MISMO botón para Ocultar + Siguiente -->
-            <button id="nextBtn" class="nextBtn" disabled>Ocultar / Siguiente</button>
-          </div>
+    <a href="/impostorJuego/index.html" class="card">
+      <div class="icon">🕵️‍♂️</div>
+      <h2>Impostor</h2>
+      <p>Descubre quién miente antes de que sea tarde</p>
+    </a>
 
-          <div class="status">
-            <div class="who" id="whoText">Aún no inicia la partida.</div>
-            <h2 class="big" id="roleText">—</h2>
-            <p class="hint" id="hintText">Inicia la partida para asignar roles.</p>
-          </div>
+    <a href="/wave/index.html" class="card">
+      <div class="icon">🌀</div>
+      <h2>Wavelength</h2>
+      <p>Adivina en qué punto del espectro estás</p>
+    </a>
 
-          <div class="imgWrap">
-            <div class="charImg" aria-label="Imagen del personaje">
-              <img id="characterImage" alt="Imagen del personaje" style="display:none;" src="" />
-              <div class="placeholder" id="imgPlaceholder">
-                Aquí aparecerá la imagen del personaje.
-              </div>
-            </div>
-          </div>
-        </div>
+    <a href="/100mex/index.html" class="card">
+      <div class="icon">📊</div>
+      <h2>100 Mexicanos Dijeron</h2>
+      <p>Las respuestas más populares del público</p>
+    </a>
 
-        <div class="rightPanel">
-          <div class="panel">
-            <div class="pill" id="progressPill">Jugadores: 0/0</div>
-            <div class="list">
-              <div class="mini"><strong>Impostores:</strong> <span id="impostorCount">—</span></div>
-              <div class="mini"><strong>Modo:</strong> Oscuro</div>
-            </div>
-            <p class="note">
-              El impostor <strong>no ve el nombre</strong> del personaje. Ve “IMPOSTOR”.
-            </p>
-          </div>
-        </div>
-      </section>
-    </div>
-  </div>
+    <a href="/pasapalabra/index.html" class="card">
+      <div class="icon">🔠</div>
+      <h2>Pasapalabra</h2>
+      <p>Completa el rosco antes que el tiempo se acabe</p>
+    </a>
 
-  <script>
-    // ==========
-    // LISTA DE PERSONAJES (tu lista)
-    // ==========
-const CHARACTERS = [
-  "Harry Potter","Hermione Granger","Ron Weasley","Albus Dumbledore",
-  "Voldemort","Severus Snape","Draco Malfoy","Hagrid",
-  "Minerva McGonagall","Sirius Black","Remus Lupin","Neville Longbottom",
-  "Ginny Weasley","Bellatrix Lestrange","Lucius Malfoy",
-  "Dobby","Vernon Dursley","Petunia Dursley","Luna Lovegood","Cedric Diggory"
-];
+  </section>
 
-    // ==========
-    // CONFIG IMÁGENES LOCALES
-    // ==========
-    const IMAGE_FOLDER = "charactersImages/";
-    const DEFAULT_EXT = ".jpg"; // cambia a .png si tus imágenes son PNG
+  <footer>
+    Hecho para jugar en vivo · Pantalla + Control · Front-only
+  </footer>
 
-    // Imagen del impostor (pon un archivo real en charactersImages/)
-    // Por ejemplo: charactersImages/impostor.jpg
-    const IMPOSTOR_IMAGE = IMAGE_FOLDER + "impostor" + DEFAULT_EXT;
+</div>
 
-    function slugify(name){
-      // convierte "Frodo Bolsón" -> "frodo-bolson"
-      return name
-        .toLowerCase()
-        .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // quita acentos
-        .replace(/['".,()]/g, "") // quita puntuación común
-        .replace(/[^a-z0-9]+/g, "-") // espacios y símbolos -> guiones
-        .replace(/^-+|-+$/g, ""); // recorta guiones
-    }
-
-    function getCharacterImagePath(characterName){
-      return IMAGE_FOLDER + slugify(characterName) + DEFAULT_EXT;
-    }
-
-    // ==========
-    // ELEMENTOS UI
-    // ==========
-    const playersInput = document.getElementById("playersInput");
-
-    const startBtn = document.getElementById("startBtn");
-    const resetBtn = document.getElementById("resetBtn");
-
-    const revealBtn = document.getElementById("revealBtn");
-    const nextBtn = document.getElementById("nextBtn"); // ahora sirve para Ocultar + Siguiente
-
-    const whoText = document.getElementById("whoText");
-    const roleText = document.getElementById("roleText");
-    const hintText = document.getElementById("hintText");
-
-    const characterImage = document.getElementById("characterImage");
-    const imgPlaceholder = document.getElementById("imgPlaceholder");
-
-    const phasePill = document.getElementById("phasePill");
-    const progressPill = document.getElementById("progressPill");
-    const impostorCount = document.getElementById("impostorCount");
-
-    // ==========
-    // ESTADO
-    // ==========
-    let game = null;
-
-    function setPhase(text){
-      phasePill.textContent = "Fase: " + text;
-    }
-    function setProgress(current, total){
-      progressPill.textContent = `Jugadores: ${current}/${total}`;
-    }
-
-    function showImage(src, altText){
-      characterImage.style.display = "block";
-      imgPlaceholder.style.display = "none";
-      characterImage.alt = altText || "Imagen";
-
-      characterImage.onerror = () => {
-        characterImage.style.display = "none";
-        imgPlaceholder.style.display = "flex";
-        imgPlaceholder.textContent = `No se encontró la imagen.\n\nArchivo esperado:\n${src}`;
-      };
-
-      characterImage.src = src;
-    }
-
-    function hideImage(){
-      characterImage.style.display = "none";
-      characterImage.removeAttribute("src");
-      imgPlaceholder.style.display = "flex";
-      imgPlaceholder.textContent = "Aquí aparecerá la imagen del personaje.";
-    }
-
-    function pickRandom(arr){
-      return arr[Math.floor(Math.random() * arr.length)];
-    }
-
-    function buildRoles(playerCount){
-      const impostors = (playerCount > 6) ? 2 : 1;
-      const character = pickRandom(CHARACTERS);
-
-      const roles = Array(playerCount).fill("CREW");
-
-      const impostorIndexes = new Set();
-      while(impostorIndexes.size < impostors){
-        impostorIndexes.add(Math.floor(Math.random() * playerCount));
-      }
-      for(const idx of impostorIndexes){
-        roles[idx] = "IMPOSTOR";
-      }
-
-      return { character, roles, impostors };
-    }
-
-    function resetUIToReady(){
-      whoText.textContent = "Partida lista. Presiona Revelar para el Jugador 1.";
-      roleText.textContent = "—";
-      hintText.textContent = "El impostor no verá el personaje.";
-      hideImage();
-
-      revealBtn.disabled = false;
-      nextBtn.disabled = true;
-      nextBtn.textContent = "Ocultar / Siguiente";
-      nextBtn.className = "nextBtn"; // azul por defecto (aunque esté deshabilitado)
-    }
-
-    function endGameUI(){
-      whoText.textContent = "Todos los jugadores ya vieron su rol.";
-      roleText.textContent = "Listo ✅";
-      hintText.textContent = "Ahora pueden empezar a jugar.";
-      hideImage();
-
-      revealBtn.disabled = true;
-      nextBtn.disabled = true;
-      nextBtn.textContent = "Ocultar / Siguiente";
-      nextBtn.className = "nextBtn";
-
-      setPhase("Finalizado");
-    }
-
-    function startGame(){
-      const n = Number(playersInput.value || 0);
-
-      if(!Number.isFinite(n) || n < 3){
-        alert("Pon al menos 3 jugadores.");
-        return;
-      }
-      if(n > 30){
-        alert("Máximo 30 jugadores (puedes subirlo si quieres).");
-        return;
-      }
-
-      const { character, roles, impostors } = buildRoles(n);
-      game = {
-        totalPlayers: n,
-        currentPlayer: 1,
-        character,
-        roles,
-        impostors,
-        revealed: false
-      };
-
-      impostorCount.textContent = String(impostors);
-
-      setPhase("En curso");
-      setProgress(0, n);
-
-      resetBtn.disabled = false;
-      startBtn.disabled = true;
-      playersInput.disabled = true;
-
-      resetUIToReady();
-    }
-
-    function resetGame(){
-      game = null;
-
-      setPhase("Configuración");
-      setProgress(0, 0);
-
-      impostorCount.textContent = "—";
-
-      whoText.textContent = "Aún no inicia la partida.";
-      roleText.textContent = "—";
-      hintText.textContent = "Inicia la partida para asignar roles.";
-      hideImage();
-
-      revealBtn.disabled = true;
-      nextBtn.disabled = true;
-      nextBtn.textContent = "Ocultar / Siguiente";
-      nextBtn.className = "nextBtn";
-
-      resetBtn.disabled = true;
-      startBtn.disabled = false;
-      playersInput.disabled = false;
-    }
-
-    function revealRole(){
-      if(!game) return;
-
-      const idx = game.currentPlayer - 1;
-      const role = game.roles[idx];
-
-      game.revealed = true;
-
-      whoText.textContent = `Jugador ${game.currentPlayer} de ${game.totalPlayers}`;
-      if(role === "IMPOSTOR"){
-        roleText.textContent = "IMPOSTOR 😈";
-        hintText.textContent = "Finge. No reveles que eres impostor.";
-        showImage(IMPOSTOR_IMAGE, "Imagen del impostor");
-      } else {
-        roleText.textContent = game.character;
-        hintText.textContent = "Memoriza el personaje y luego oculta.";
-        showImage(getCharacterImagePath(game.character), "Imagen de " + game.character);
-      }
-
-      revealBtn.disabled = true;
-
-      // El botón único pasa a comportarse como "Ocultar"
-      nextBtn.disabled = false;
-      nextBtn.textContent = "Ocultar";
-      nextBtn.className = "revealBtn"; // rojo (misma clase que ocultar antes)
-    }
-
-    function hideAndPrepareNext(){
-      if(!game) return;
-
-      // Si está revelado -> Ocultar (equivalente a hideRole)
-      if(game.revealed){
-        game.revealed = false;
-
-        roleText.textContent = "—";
-        hintText.textContent = "Pasa el teléfono al siguiente jugador.";
-        whoText.textContent = `Jugador ${game.currentPlayer} listo.`;
-
-        hideImage();
-
-        // Ahora el botón único se comporta como "Siguiente jugador"
-        nextBtn.textContent = "Siguiente jugador";
-        nextBtn.className = "nextBtn"; // azul
-        // reveal sigue deshabilitado hasta que presione "Siguiente"
-        revealBtn.disabled = true;
-        return;
-      }
-
-      // Si NO está revelado -> Siguiente jugador (equivalente a nextPlayer)
-      setProgress(game.currentPlayer, game.totalPlayers);
-
-      if(game.currentPlayer >= game.totalPlayers){
-        endGameUI();
-        return;
-      }
-
-      game.currentPlayer += 1;
-
-      whoText.textContent = `Listo para Jugador ${game.currentPlayer}. Presiona Revelar.`;
-      roleText.textContent = "—";
-      hintText.textContent = "El impostor no verá el personaje.";
-      hideImage();
-
-      revealBtn.disabled = false;
-
-      // Volvemos a estado inicial del botón único
-      nextBtn.disabled = true;
-      nextBtn.textContent = "Ocultar / Siguiente";
-      nextBtn.className = "nextBtn";
-    }
-
-    // ==========
-    // EVENTOS
-    // ==========
-    startBtn.addEventListener("click", startGame);
-    resetBtn.addEventListener("click", resetGame);
-
-    revealBtn.addEventListener("click", revealRole);
-    nextBtn.addEventListener("click", hideAndPrepareNext);
-
-    // Estado inicial
-    resetGame();
-  </script>
 </body>
 </html>
-
-
-
