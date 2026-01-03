@@ -1,0 +1,666 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Pasapalabra - CONTROL</title>
+<style>
+  :root{
+    --bg:#081421;
+    --text:#eef2ff;
+    --muted:#9fb5c9;
+
+    --pending:#2a335c;
+    --ok:#06d6a0;
+    --bad:#ef476f;
+
+    --btn:#2c3a74;
+    --btn2:#1c2651;
+  }
+  *{ box-sizing:border-box; font-family:system-ui,Segoe UI,Roboto,Arial; }
+  body{ margin:0; background:radial-gradient(900px 600px at 30% 10%, #1b2a6b 0%, var(--bg) 55%); color:var(--text); }
+  .wrap{ max-width:980px; margin:0 auto; padding:18px; }
+  .card{
+    background:rgba(18,26,51,.88);
+    border:1px solid rgba(255,255,255,.10);
+    border-radius:18px;
+    padding:14px;
+    box-shadow:0 12px 30px rgba(0,0,0,.35);
+    margin-bottom:14px;
+  }
+  h1{ margin:0 0 10px 0; font-size:20px; }
+  .muted{ color:var(--muted); font-size:12px; }
+  .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
+  select, .filebtn{
+    background:rgba(0,0,0,.25);
+    border:1px solid rgba(255,255,255,.12);
+    color:var(--text);
+    padding:10px 12px;
+    border-radius:14px;
+    outline:none;
+  }
+  .filebtn{ cursor:pointer; user-select:none; display:inline-flex; gap:8px; align-items:center; }
+  .filebtn input{ display:none; }
+  .q-title{ font-size:13px; color:var(--muted); margin:0; }
+  .q-text{ margin:0; font-size:16px; line-height:1.35; }
+  .answerBox{
+    margin-top:10px;
+    padding:12px 14px;
+    border-radius:16px;
+    background:rgba(0,0,0,.20);
+    border:1px solid rgba(255,255,255,.12);
+  }
+  .answerBox .ans{
+    margin:0;
+    font-size:18px;
+    font-weight:900;
+    letter-spacing:.2px;
+  }
+
+  .btns{ display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  button{
+    background:var(--btn);
+    border:1px solid rgba(255,255,255,.12);
+    color:var(--text);
+    padding:10px 12px;
+    border-radius:14px;
+    cursor:pointer;
+    font-weight:900;
+  }
+  button.secondary{ background:var(--btn2); }
+  button.good{ background:rgba(6,214,160,.18); border-color:rgba(6,214,160,.35); }
+  button.bad{ background:rgba(239,71,111,.18); border-color:rgba(239,71,111,.35); }
+  button:disabled{ opacity:.45; cursor:not-allowed; }
+
+  .toggles{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-top:10px;
+    align-items:center;
+  }
+  .chip{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding:8px 10px;
+    border-radius:999px;
+    background:rgba(0,0,0,.22);
+    border:1px solid rgba(255,255,255,.12);
+    color:var(--text);
+    user-select:none;
+  }
+  .chip input{ transform: translateY(1px); }
+
+  .list{ max-height:560px; overflow:auto; padding-right:6px; }
+  .item{
+    padding:10px 12px;
+    border-radius:14px;
+    background:rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.08);
+    margin-bottom:10px;
+    cursor:pointer;
+  }
+  .item:hover{ filter:brightness(1.05); }
+  .item .top{ display:flex; justify-content:space-between; gap:10px; align-items:center; }
+  .badge{
+    font-size:12px; padding:4px 8px; border-radius:999px;
+    border:1px solid rgba(255,255,255,.12); color:var(--muted);
+    white-space:nowrap;
+  }
+  .badge.ok{ color:#0cf3b2; border-color:rgba(6,214,160,.35); }
+  .badge.bad{ color:#ff7a99; border-color:rgba(239,71,111,.35); }
+  .badge.pending{ color:#c7d2fe; border-color:rgba(199,210,254,.25); }
+  .small{ color:var(--muted); font-size:12px; margin-top:8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="card">
+    <h1>Pasapalabra (Control)</h1>
+
+    <div class="row">
+      <label style="flex:1; min-width:240px; display:flex; flex-direction:column; gap:6px;">
+        <span class="q-title">Set</span>
+        <select id="setSelect"></select>
+      </label>
+
+      <label class="filebtn" title="Cargar JSON externo">
+        📁 Cargar JSON <input id="jsonFile" type="file" accept="application/json,.json" />
+      </label>
+
+      <button class="secondary" id="reloadBtn">↻ Recargar</button>
+    </div>
+
+    <div class="toggles">
+      <label class="chip" title="Activa sonidos de acierto/error/pasar">
+        <input id="soundsToggle" type="checkbox" checked />
+        🔊 Sonidos
+      </label>
+
+      <label class="chip" title="Muestra un banner en el SHOW cuando termina la ronda">
+        <input id="bannerToggle" type="checkbox" checked />
+        🏁 Banner fin de ronda
+      </label>
+    </div>
+
+    <div style="margin-top:12px;">
+      <p class="q-title" id="qTitle">Letra:</p>
+      <p class="q-text" id="qText">Pulsa “Iniciar”.</p>
+
+      <div class="answerBox">
+        <p class="q-title" style="margin-bottom:6px;">Respuesta correcta:</p>
+        <p class="ans" id="correctAnswer">—</p>
+      </div>
+
+      <div class="btns">
+        <button id="startBtn">Iniciar</button>
+        <button class="good" id="markOk">✔️ Correcta</button>
+        <button class="bad" id="markBad">❌ Incorrecta</button>
+        <button class="secondary" id="passBtn">⏭ Pasar</button>
+
+        <button class="secondary" id="undoBtn" disabled title="Deshacer última marca/paso">↩️ Deshacer</button>
+
+        <button class="bad" id="finishBtn">Terminar</button>
+      </div>
+
+      <p class="muted" style="margin:10px 0 0 0;">
+        Atajos: <b>1</b> correcta · <b>2</b> incorrecta · <b>Espacio</b> pasar · <b>Ctrl+Z</b> deshacer · <b>Esc</b> terminar
+      </p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h1>Lista (respuestas visibles por default)</h1>
+    <p class="muted" style="margin-top:0;">Clic en una tarjeta para saltar a esa letra.</p>
+    <div class="list" id="list"></div>
+    <p class="muted" id="summary" style="margin:10px 0 0 0;"></p>
+  </div>
+
+</div>
+
+<script>
+  const KEY = "PASAPALABRA_STATE_V1";
+
+  function normalize(s){
+    return (s ?? "")
+      .toString()
+      .trim()
+      .toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+      .replace(/\s+/g," ");
+  }
+  function formatTime(sec){
+    const mm = String(Math.floor(sec/60)).padStart(2,"0");
+    const ss = String(sec%60).padStart(2,"0");
+    return `${mm}:${ss}`;
+  }
+
+  // ====== Sonidos (WebAudio, sin archivos) ======
+  let audioCtx = null;
+  function beep(type){
+    if (!els.soundsToggle.checked) return;
+    try{
+      audioCtx ??= new (window.AudioContext || window.webkitAudioContext)();
+      const t0 = audioCtx.currentTime;
+
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      // distintos tonos por acción
+      let freq = 440, dur = 0.09;
+      if (type === "ok"){ freq = 880; dur = 0.10; }
+      if (type === "bad"){ freq = 220; dur = 0.13; }
+      if (type === "pass"){ freq = 520; dur = 0.06; }
+      if (type === "undo"){ freq = 330; dur = 0.08; }
+      if (type === "end"){ freq = 660; dur = 0.12; }
+
+      osc.frequency.setValueAtTime(freq, t0);
+      osc.type = "sine";
+
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.exponentialRampToValueAtTime(0.14, t0 + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+
+      osc.start(t0);
+      osc.stop(t0 + dur + 0.02);
+    }catch{}
+  }
+
+  // ====== Letras ======
+  let USE_ENYE = true;
+  function buildLetters(){
+    const base = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+    if (!USE_ENYE) return base;
+    const idx = base.indexOf("N");
+    base.splice(idx + 1, 0, "Ñ");
+    return base;
+  }
+
+  // Sets base (tú puedes pegarlos completos aquí)
+  const SETS = [
+    {
+      name: "Set 1 (General)",
+      useEnye: true,
+      questions: [
+        { letter:"A", clue:"Con la A: Capital de España.", answer:"madrid" },
+        { letter:"B", clue:"Con la B: Mamífero que puede volar.", answer:"murcielago" },
+        { letter:"C", clue:"Con la C: Dispositivo para tomar fotos.", answer:"camara" },
+        { letter:"D", clue:"Con la D: Lo opuesto de 'noche'.", answer:"dia" },
+        { letter:"Ñ", clue:"Con la Ñ: Ave grande corredora sudamericana.", answer:"ñandu" }
+      ]
+    },
+    { name:"Set 2", useEnye:true, questions:[] },
+    { name:"Set 3", useEnye:false, questions:[] },
+    { name:"Set 4", useEnye:true, questions:[] }
+  ];
+
+  // ====== Estado ======
+  const state = {
+    started:false,
+    seconds:0,
+    timerId:null,
+    currentIndex:0,
+    currentSetName:"",
+    items:[],
+    gameOver:false,
+    banner:""
+  };
+
+  // Undo stack: guarda snapshots mínimos
+  const undoStack = []; // {indexBefore, indexAfter, itemIndex, prevStatus, newStatus, seconds, gameOver, banner}
+
+  const els = {
+    setSelect: document.getElementById("setSelect"),
+    jsonFile: document.getElementById("jsonFile"),
+    reloadBtn: document.getElementById("reloadBtn"),
+
+    qTitle: document.getElementById("qTitle"),
+    qText: document.getElementById("qText"),
+    correctAnswer: document.getElementById("correctAnswer"),
+
+    startBtn: document.getElementById("startBtn"),
+    markOk: document.getElementById("markOk"),
+    markBad: document.getElementById("markBad"),
+    passBtn: document.getElementById("passBtn"),
+    undoBtn: document.getElementById("undoBtn"),
+    finishBtn: document.getElementById("finishBtn"),
+
+    list: document.getElementById("list"),
+    summary: document.getElementById("summary"),
+
+    soundsToggle: document.getElementById("soundsToggle"),
+    bannerToggle: document.getElementById("bannerToggle"),
+  };
+
+  function buildGameItems(questions){
+    const LETTERS = buildLetters();
+    const map = new Map();
+    for (const q of questions){
+      const L = (q.letter || "").toUpperCase();
+      if (!L) continue;
+      map.set(L, {
+        letter:L,
+        clue: q.clue ?? `Con la ${L}: (sin pista)`,
+        answer: normalize(q.answer ?? ""),
+        status:"pending",
+      });
+    }
+    state.items = LETTERS.map(L => map.get(L) ?? ({
+      letter:L,
+      clue:`Con la ${L}: (sin pregunta definida)`,
+      answer:"",
+      status:"pending",
+    }));
+  }
+
+  function computeStats(){
+    const ok = state.items.filter(i=>i.status==="ok").length;
+    const bad = state.items.filter(i=>i.status==="bad").length;
+    const pending = state.items.filter(i=>i.status==="pending").length;
+    return { ok, bad, pending };
+  }
+
+  function pushToShow(){
+    const stats = computeStats();
+    const payload = {
+      currentSetName: state.currentSetName,
+      currentIndex: state.currentIndex,
+      items: state.items.map(i=>({ letter:i.letter, clue:i.clue, status:i.status })),
+      timeStr: formatTime(state.seconds),
+      stats,
+      gameOver: state.gameOver,
+      banner: state.banner
+    };
+    localStorage.setItem(KEY, JSON.stringify(payload));
+  }
+
+  function showQuestion(){
+    const it = state.items[state.currentIndex] || {};
+    els.qTitle.textContent = `Letra: ${it.letter || "—"} · ${state.currentSetName}`;
+    els.qText.textContent = it.clue || "—";
+    els.correctAnswer.textContent = it.answer ? it.answer : "(sin respuesta)";
+  }
+
+  function nextPending(fromIndex){
+    const n = state.items.length;
+    for (let step=1; step<=n; step++){
+      const idx = (fromIndex + step) % n;
+      if (state.items[idx].status === "pending") return idx;
+    }
+    return -1;
+  }
+
+  function renderList(){
+    els.list.innerHTML = "";
+    state.items.forEach((it, i)=>{
+      const badgeCls = it.status==="ok" ? "ok" : it.status==="bad" ? "bad" : "pending";
+      const badgeText = it.status==="ok" ? "✅" : it.status==="bad" ? "❌" : "⏳";
+
+      const div = document.createElement("div");
+      div.className = "item";
+      div.innerHTML = `
+        <div class="top">
+          <div><b>${it.letter}</b> <span style="color:var(--muted)">· ${it.clue}</span></div>
+          <span class="badge ${badgeCls}">${badgeText} ${it.status}</span>
+        </div>
+        <div class="small">
+          Respuesta: <b>${it.answer || "(sin respuesta)"}</b>
+        </div>
+      `;
+      div.addEventListener("click", ()=>{
+        if (!state.started) return;
+        state.currentIndex = i;
+        showQuestion();
+        pushToShow();
+      });
+      els.list.appendChild(div);
+    });
+
+    const s = computeStats();
+    els.summary.textContent = `Tiempo: ${formatTime(state.seconds)} · ✅ ${s.ok} · ❌ ${s.bad} · ⏳ ${s.pending}`;
+  }
+
+  function tick(){
+    state.seconds += 1;
+    renderList();
+    pushToShow();
+  }
+
+  function clearBanner(){
+    state.gameOver = false;
+    state.banner = "";
+  }
+
+  function setBanner(text){
+    if (!els.bannerToggle.checked) return;
+    state.gameOver = true;
+    state.banner = text;
+  }
+
+  function updateUndoButton(){
+    els.undoBtn.disabled = undoStack.length === 0 || !state.started;
+  }
+
+  function startGame(){
+    state.seconds = 0;
+    state.items.forEach(i=> i.status="pending");
+    state.started = true;
+
+    undoStack.length = 0;
+    updateUndoButton();
+
+    clearBanner();
+
+    clearInterval(state.timerId);
+    state.timerId = setInterval(tick, 1000);
+
+    const first = state.items.findIndex(i=>i.status==="pending");
+    state.currentIndex = first >= 0 ? first : 0;
+
+    showQuestion();
+    renderList();
+    pushToShow();
+
+    // Para que el primer beep no falle por autoplay policies, el click ya cuenta como gesto
+    beep("pass");
+  }
+
+  function endGame(manual=false){
+    state.started = false;
+    clearInterval(state.timerId);
+    state.timerId = null;
+
+    if (manual){
+      setBanner("Juego terminado");
+    } else {
+      setBanner("Ronda terminada");
+    }
+
+    renderList();
+    pushToShow();
+    updateUndoButton();
+    beep("end");
+  }
+
+  function pass(){
+    if (!state.started) return;
+
+    const idxBefore = state.currentIndex;
+    const nxt = nextPending(state.currentIndex);
+
+    // Guardar undo: “pasar” no cambia status, pero sí index
+    undoStack.push({
+      kind:"pass",
+      indexBefore: idxBefore,
+      indexAfter: (nxt === -1 ? idxBefore : nxt),
+      itemIndex: null,
+      prevStatus: null,
+      newStatus: null,
+      seconds: state.seconds,
+      gameOver: state.gameOver,
+      banner: state.banner
+    });
+    updateUndoButton();
+
+    clearBanner();
+
+    if (nxt === -1) return endGame(false);
+
+    state.currentIndex = nxt;
+    showQuestion();
+    pushToShow();
+    beep("pass");
+  }
+
+  function nextStepAfterMark(idxBefore, itemIndex, prevStatus, newStatus){
+    renderList();
+
+    const nxt = nextPending(state.currentIndex);
+    clearBanner();
+
+    if (nxt === -1){
+      pushToShow();
+      return endGame(false);
+    }
+
+    state.currentIndex = nxt;
+    showQuestion();
+    pushToShow();
+  }
+
+  function mark(status){
+    if (!state.started) return;
+    const itemIndex = state.currentIndex;
+    const it = state.items[itemIndex];
+    const prevStatus = it.status;
+
+    // si ya estaba marcado, igual permitimos cambiar (y se puede deshacer)
+    it.status = status;
+
+    const idxBefore = itemIndex;
+    const nxt = nextPending(itemIndex);
+    const idxAfter = (nxt === -1 ? itemIndex : nxt);
+
+    undoStack.push({
+      kind:"mark",
+      indexBefore: idxBefore,
+      indexAfter: idxAfter,
+      itemIndex,
+      prevStatus,
+      newStatus: status,
+      seconds: state.seconds,
+      gameOver: state.gameOver,
+      banner: state.banner
+    });
+    updateUndoButton();
+
+    beep(status === "ok" ? "ok" : "bad");
+    nextStepAfterMark(idxBefore, itemIndex, prevStatus, status);
+  }
+
+  function undo(){
+    if (!state.started) return;
+    const last = undoStack.pop();
+    if (!last) return;
+
+    // restaurar banner flags como estaban
+    state.gameOver = last.gameOver ?? false;
+    state.banner = last.banner ?? "";
+
+    if (last.kind === "pass"){
+      state.currentIndex = last.indexBefore;
+      showQuestion();
+      pushToShow();
+      renderList();
+      updateUndoButton();
+      beep("undo");
+      return;
+    }
+
+    if (last.kind === "mark"){
+      if (typeof last.itemIndex === "number"){
+        state.items[last.itemIndex].status = last.prevStatus ?? "pending";
+      }
+      state.currentIndex = last.indexBefore;
+      showQuestion();
+      pushToShow();
+      renderList();
+      updateUndoButton();
+      beep("undo");
+      return;
+    }
+  }
+
+  // ====== Sets / JSON ======
+  function populateSets(){
+    els.setSelect.innerHTML = "";
+    SETS.forEach((s, idx)=>{
+      const opt = document.createElement("option");
+      opt.value = String(idx);
+      opt.textContent = s.name;
+      els.setSelect.appendChild(opt);
+    });
+  }
+
+  function loadSet(idx){
+    const set = SETS[idx];
+    if (!set) return;
+    USE_ENYE = !!set.useEnye;
+    state.currentSetName = set.name;
+
+    buildGameItems(set.questions);
+
+    state.started = false;
+    clearInterval(state.timerId);
+    state.timerId = null;
+
+    undoStack.length = 0;
+    updateUndoButton();
+
+    clearBanner();
+
+    // posiciona en primer pendiente
+    const first = state.items.findIndex(i=>i.status==="pending");
+    state.currentIndex = first >= 0 ? first : 0;
+
+    showQuestion();
+    renderList();
+    pushToShow();
+  }
+
+  async function loadFromJson(file){
+    const text = await file.text();
+    const data = JSON.parse(text);
+
+    USE_ENYE = !!(data.useEnye ?? true);
+    state.currentSetName = file.name;
+
+    const questions = data.questions ?? [];
+    if (!Array.isArray(questions)) return alert("JSON inválido: 'questions' debe ser un arreglo.");
+
+    // normaliza answers
+    for (const q of questions){
+      if (typeof q.answer === "string") q.answer = normalize(q.answer);
+    }
+
+    buildGameItems(questions);
+
+    state.started = false;
+    clearInterval(state.timerId);
+    state.timerId = null;
+
+    undoStack.length = 0;
+    updateUndoButton();
+
+    clearBanner();
+
+    const first = state.items.findIndex(i=>i.status==="pending");
+    state.currentIndex = first >= 0 ? first : 0;
+
+    showQuestion();
+    renderList();
+    pushToShow();
+  }
+
+  // ====== Eventos ======
+  els.startBtn.addEventListener("click", startGame);
+  els.markOk.addEventListener("click", ()=>mark("ok"));
+  els.markBad.addEventListener("click", ()=>mark("bad"));
+  els.passBtn.addEventListener("click", pass);
+  els.undoBtn.addEventListener("click", undo);
+  els.finishBtn.addEventListener("click", ()=>endGame(true));
+
+  els.setSelect.addEventListener("change", ()=> loadSet(Number(els.setSelect.value)));
+  els.reloadBtn.addEventListener("click", ()=> loadSet(Number(els.setSelect.value)));
+
+  els.jsonFile.addEventListener("change", async ()=>{
+    const f = els.jsonFile.files?.[0];
+    if (!f) return;
+    try{ await loadFromJson(f); }
+    catch(e){ console.error(e); alert("No se pudo cargar el JSON."); }
+    finally{ els.jsonFile.value = ""; }
+  });
+
+  // Atajos
+  window.addEventListener("keydown", (e)=>{
+    if (e.key === "1"){ e.preventDefault(); mark("ok"); return; }
+    if (e.key === "2"){ e.preventDefault(); mark("bad"); return; }
+    if (e.key === "Escape"){ e.preventDefault(); endGame(true); return; }
+    if (e.key === " "){ e.preventDefault(); pass(); return; }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z"){
+      e.preventDefault();
+      undo();
+      return;
+    }
+  });
+
+  // init
+  populateSets();
+  loadSet(0);
+</script>
+</body>
+</html>
