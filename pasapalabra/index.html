@@ -1,0 +1,850 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Pasapalabra (Rosco) - Multi Partidas + JSON</title>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --card:#121a33;
+      --muted:#8ea0c9;
+      --text:#eef2ff;
+
+      --pending:#2a335c;
+      --active:#ffd166;
+      --ok:#06d6a0;
+      --bad:#ef476f;
+
+      --btn:#2c3a74;
+      --btn2:#1c2651;
+
+      /* Panel del rosco: color PLANO para chroma/overlay */
+      --roscoPanelFlat:#00ff1a;         /* cámbialo al color plano que quieras */
+      --roscoHoleFlat:#00ff1a;          /* “hueco” central (para cámara/overlay) */
+      --roscoRingBorder: #00ff1a;
+    }
+
+    *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial}
+
+    body{
+      margin:0;
+      background:radial-gradient(1200px 700px at 30% 20%, #1b2a6b 0%, var(--bg) 55%);
+      color:var(--text);
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:22px;
+    }
+
+    .app{
+      width:min(1200px,100%);
+      display:grid;
+      gap:16px;
+      grid-template-columns: .95fr 1.05fr;
+    }
+
+    .panel{
+      background:rgba(18,26,51,.88);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:18px;
+      padding:16px;
+      box-shadow:0 12px 30px rgba(0,0,0,.35);
+    }
+
+    /* Panel del rosco: PLANO */
+    .panel.rosco-panel{
+      background: var(--roscoPanelFlat);
+      border:1px solid rgba(255,255,255,.18);
+      box-shadow:0 12px 30px rgba(0,0,0,.35);
+    }
+
+    h1{margin:0 0 10px 0; font-size:20px; letter-spacing:.3px}
+    .sub{color:rgba(255,255,255,.85); font-size:13px; margin:0 0 14px 0}
+    .sub.muted{color:var(--muted)}
+
+    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+
+    .stat{
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.08);
+      padding:10px 12px;
+      border-radius:14px;
+      min-width:120px
+    }
+    .stat b{display:block; font-size:16px}
+    .stat span{color:var(--muted); font-size:12px}
+
+    .controls-top{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      margin:0 0 10px 0;
+    }
+
+    select, .filebtn{
+      background:rgba(0,0,0,.25);
+      border:1px solid rgba(255,255,255,.12);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:14px;
+      outline:none;
+      cursor:pointer;
+    }
+
+    .filebtn{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      user-select:none;
+    }
+    .filebtn input{display:none;}
+
+    .rosco-wrap{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:10px;
+    }
+
+    .rosco{
+      position:relative;
+      width:440px;
+      height:440px;
+      max-width:85vw;
+      max-height:85vw;
+    }
+
+    /* “hueco” central (zona para cámara/overlay) */
+    .rosco-hole{
+      position:absolute;
+      inset:86px;
+      border-radius:999px;
+      background:var(--roscoHoleFlat);
+      pointer-events:none;
+    }
+
+    .letter{
+      position:absolute;
+      width:42px;
+      height:42px;
+      border-radius:999px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:700;
+      background:var(--pending);
+      border:1px solid rgba(255,255,255,.12);
+      user-select:none;
+      transition:transform .15s ease, background .2s ease, box-shadow .2s ease;
+    }
+    .letter.pending{background:var(--pending)}
+    .letter.active{
+      background:var(--active);
+      color:#222;
+      box-shadow:0 0 0 6px rgba(255,209,102,.18);
+      transform:scale(1.06)
+    }
+    .letter.ok{background:var(--ok); color:#062b1f}
+    .letter.bad{background:var(--bad)}
+
+    /* Panel de controles */
+    .game-center{
+      border-radius:18px;
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.10);
+      padding:14px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      margin-bottom:14px;
+    }
+
+    .q-title{font-size:13px; color:var(--muted); margin:0}
+    .q-text{margin:0; font-size:15px; line-height:1.35}
+
+    .input{display:flex; gap:8px; margin-top:8px}
+    input[type="text"]{
+      flex:1;
+      background:rgba(0,0,0,.25);
+      border:1px solid rgba(255,255,255,.12);
+      color:var(--text);
+      padding:11px 12px;
+      border-radius:14px;
+      outline:none;
+    }
+    input[type="text"]:focus{
+      border-color:rgba(255,209,102,.55);
+      box-shadow:0 0 0 4px rgba(255,209,102,.12)
+    }
+
+    .btns{display:flex; gap:8px; flex-wrap:wrap; margin-top:8px}
+    button{
+      background:var(--btn);
+      border:1px solid rgba(255,255,255,.12);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:14px;
+      cursor:pointer;
+      font-weight:600;
+    }
+    button:hover{filter:brightness(1.08)}
+    button:active{transform:translateY(1px)}
+    button.secondary{background:var(--btn2)}
+    button.good{background:rgba(6,214,160,.18); border-color:rgba(6,214,160,.35)}
+    button.bad{background:rgba(239,71,111,.18); border-color:rgba(239,71,111,.35)}
+
+    .list{max-height:420px; overflow:auto; padding-right:6px}
+    .item{
+      padding:10px 12px;
+      border-radius:14px;
+      background:rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.08);
+      margin-bottom:10px;
+    }
+    .item .top{display:flex; align-items:center; justify-content:space-between; gap:10px}
+    .badge{
+      font-size:12px;
+      padding:4px 8px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      color:var(--muted)
+    }
+    .badge.ok{color:#0cf3b2; border-color:rgba(6,214,160,.35)}
+    .badge.bad{color:#ff7a99; border-color:rgba(239,71,111,.35)}
+    .badge.pending{color:#c7d2fe; border-color:rgba(199,210,254,.25)}
+    .small{color:var(--muted); font-size:12px; margin-top:8px}
+    .footer-note{color:var(--muted); font-size:12px; margin:10px 0 0 0}
+
+    @media (max-width: 980px){
+      .app{grid-template-columns:1fr}
+      .rosco{width:380px;height:380px}
+      .rosco-hole{inset:76px}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- PANEL 1: SOLO CÍRCULO (fondo plano) -->
+    <section class="panel rosco-panel">
+      <h1 style="color:#fff">Rosco</h1>
+      <p class="sub">Panel plano para poner cámara/overlay encima.</p>
+      <div class="rosco-wrap">
+        <div class="rosco" id="rosco">
+          <div class="rosco-hole" aria-hidden="true"></div>
+        </div>
+      </div>
+      <p class="sub" style="margin:0; opacity:.9">
+        Tip: cambia <b>--roscoPanelFlat</b> (CSS) al color exacto que quieras para tu fondo.
+      </p>
+    </section>
+
+    <!-- PANEL 2: TODO LO DEMÁS -->
+    <aside class="panel">
+      <h1>Pasapalabra (Controles)</h1>
+      <p class="sub muted">Mínimo 4 partidas incluidas + opción de cargar preguntas desde un JSON externo.</p>
+
+      <div class="controls-top">
+        <label style="display:flex;flex-direction:column;gap:6px">
+          <span class="q-title">Partida / Set</span>
+          <select id="setSelect"></select>
+        </label>
+
+        <label class="filebtn" title="Cargar un JSON con preguntas">
+          📁 Cargar JSON
+          <input id="jsonFile" type="file" accept="application/json,.json" />
+        </label>
+
+        <button class="secondary" id="resetToSetBtn" title="Recargar el set seleccionado">↻ Recargar set</button>
+      </div>
+
+      <div class="row" style="margin-bottom:10px">
+        <div class="stat"><b id="time">00:00</b><span>Tiempo</span></div>
+        <div class="stat"><b id="ok">0</b><span>Acertadas</span></div>
+        <div class="stat"><b id="bad">0</b><span>Falladas</span></div>
+        <div class="stat"><b id="pending">0</b><span>Pendientes</span></div>
+      </div>
+
+      <div class="game-center">
+        <p class="q-title" id="qTitle">Letra:</p>
+        <p class="q-text" id="qText">Pulsa “Iniciar” para comenzar.</p>
+
+        <div class="input">
+          <input id="answer" type="text" placeholder="Escribe tu respuesta…" autocomplete="off" />
+        </div>
+
+        <div class="btns">
+          <button id="startBtn">Iniciar</button>
+          <button class="secondary" id="passBtn">Pasar</button>
+          <button class="good" id="sendBtn">Enviar</button>
+          <button class="secondary" id="revealBtn">Mostrar respuesta</button>
+          <button class="bad" id="finishBtn">Terminar</button>
+        </div>
+
+        <p class="footer-note">
+          Atajos: <b>Enter</b> enviar · <b>Espacio</b> pasar · <b>Esc</b> terminar
+        </p>
+      </div>
+
+      <h1 style="margin-top:14px">Preguntas</h1>
+      <p class="sub muted">La lista muestra el estado por letra. Puedes hacer clic en una tarjeta para saltar.</p>
+      <div class="list" id="list"></div>
+      <p class="small" id="endSummary"></p>
+
+      <details style="margin-top:10px; color:var(--muted)">
+        <summary style="cursor:pointer">Formato del JSON externo (ejemplo)</summary>
+        <pre style="white-space:pre-wrap;background:rgba(0,0,0,.25);padding:10px;border-radius:12px;border:1px solid rgba(255,255,255,.12);color:#c7d2fe;margin:10px 0 0 0;">
+{
+  "useEnye": true,
+  "questions": [
+    { "letter": "A", "clue": "Con la A: ...", "answer": "..." },
+    { "letter": "B", "clue": "Con la B: ...", "answer": "..." }
+  ]
+}
+        </pre>
+      </details>
+    </aside>
+  </div>
+
+<script>
+/**
+ * Pasapalabra simple (1 jugador)
+ * - Letras: A..Z + Ñ opcional
+ * - Set selector (mínimo 4 sets)
+ * - Carga desde JSON externo (File Picker)
+ */
+
+// ====== Config ======
+let USE_ENYE = true;
+
+function buildLetters(){
+  const base = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+  if (!USE_ENYE) return base;
+  const idx = base.indexOf("N");
+  base.splice(idx + 1, 0, "Ñ");
+  return base;
+}
+
+// ====== 4 SETS (partidas) incluidas ======
+// Nota: puedes editar/expandir estas preguntas. Si falta alguna letra, queda como “sin pregunta definida”.
+const SETS = [
+  {
+    name: "Set 1 (General)",
+    useEnye: true,
+    questions: [
+      { letter:"A", clue:"Con la A: Capital de España.", answer:"madrid" },
+      { letter:"B", clue:"Con la B: Mamífero que puede volar.", answer:"murcielago" },
+      { letter:"C", clue:"Con la C: Dispositivo para tomar fotos.", answer:"camara" },
+      { letter:"D", clue:"Con la D: Lo opuesto de 'noche'.", answer:"dia" },
+      { letter:"E", clue:"Con la E: Planeta donde vivimos.", answer:"tierra" },
+      { letter:"F", clue:"Con la F: Instrumento musical de teclas.", answer:"piano" },
+      { letter:"G", clue:"Con la G: Aparato para jugar videojuegos (genérico).", answer:"gamepad" },
+      { letter:"H", clue:"Con la H: Lugar donde se guardan libros.", answer:"hemeroteca" }, // ejemplo
+      { letter:"I", clue:"Con la I: Acción de copiar datos a la nube.", answer:"importar" }, // ejemplo
+      { letter:"J", clue:"Con la J: Juego de mesa de estrategia clásico.", answer:"ajedrez" },
+      { letter:"K", clue:"Con la K: Unidad de masa abreviada.", answer:"kilo" },
+      { letter:"L", clue:"Con la L: Astro que orbita la Tierra.", answer:"luna" },
+      { letter:"M", clue:"Con la M: Animal doméstico que dice 'miau'.", answer:"michi" }, // mx
+      { letter:"N", clue:"Con la N: Lo contrario de 'sí'.", answer:"no" },
+      { letter:"Ñ", clue:"Con la Ñ: Ave grande corredora sudamericana.", answer:"ñandu" },
+      { letter:"O", clue:"Con la O: Lo opuesto de cerrado.", answer:"abierto" }, // ejemplo
+      { letter:"P", clue:"Con la P: Lugar para nadar.", answer:"piscina" },
+      { letter:"Q", clue:"Con la Q: Producto lácteo que se derrite en pizza.", answer:"queso" },
+      { letter:"R", clue:"Con la R: Color del semáforo que indica alto.", answer:"rojo" },
+      { letter:"S", clue:"Con la S: Estrella del sistema solar.", answer:"sol" },
+      { letter:"T", clue:"Con la T: Bebida caliente infusionada.", answer:"te" },
+      { letter:"U", clue:"Con la U: Aparato para escuchar música con orejas (plural).", answer:"audifonos" }, // ejemplo
+      { letter:"V", clue:"Con la V: Lo opuesto de derrota.", answer:"victoria" },
+      { letter:"W", clue:"Con la W: Siglas de la red mundial.", answer:"www" },
+      { letter:"X", clue:"Con la X: Instrumento de láminas que se toca con baquetas.", answer:"xilofono" },
+      { letter:"Y", clue:"Con la Y: Parte amarilla del huevo.", answer:"yema" },
+      { letter:"Z", clue:"Con la Z: Animal a rayas blancas y negras.", answer:"cebra" }
+    ]
+  },
+  {
+    name: "Set 2 (Cine/Series)",
+    useEnye: true,
+    questions: [
+      { letter:"A", clue:"Con la A: Película de Pixar donde hay emociones como personajes.", answer:"intensamente" },
+      { letter:"B", clue:"Con la B: Caballero oscuro de Gotham.", answer:"batman" },
+      { letter:"C", clue:"Con la C: Saga de películas con dinosaurios (parque).", answer:"jurassic" },
+      { letter:"D", clue:"Con la D: El protagonista de 'The Mandalorian' es conocido como...", answer:"din" }, // Din Djarin (aceptas “din”)
+      { letter:"E", clue:"Con la E: Serie de Netflix sobre un mundo al revés.", answer:"stranger things" },
+      { letter:"F", clue:"Con la F: Robot pequeño de Pixar que compacta basura.", answer:"wall-e" }, // normaliza guion
+      { letter:"G", clue:"Con la G: Personaje verde ogro muy famoso.", answer:"shrek" }, // (no G) ejemplo, cámbialo
+      { letter:"H", clue:"Con la H: Mago con cicatriz en forma de rayo.", answer:"harry potter" },
+      { letter:"I", clue:"Con la I: Universo cinematográfico de superhéroes abreviado como...", answer:"mcu" }, // ejemplo
+      { letter:"J", clue:"Con la J: Espía británico con licencia para matar.", answer:"james bond" },
+      { letter:"K", clue:"Con la K: Planeta natal de Superman.", answer:"krypton" },
+      { letter:"L", clue:"Con la L: Jedi legendario, hijo de Anakin.", answer:"luke" },
+      { letter:"M", clue:"Con la M: Personaje de 'The Office' que es el jefe regional.", answer:"michael" },
+      { letter:"N", clue:"Con la N: Neo es el protagonista de esta saga.", answer:"matrix" }, // (no N) ejemplo
+      { letter:"Ñ", clue:"Con la Ñ: Palabra que significa niño pequeño (diminutivo).", answer:"niño" }, // ejemplo
+      { letter:"O", clue:"Con la O: Juguete vaquero de Toy Story.", answer:"woody" }, // (no O) ejemplo
+      { letter:"P", clue:"Con la P: El 'niño' de Star Wars apodado...", answer:"grogu" }, // (no P) ejemplo
+      { letter:"Q", clue:"Con la Q: Tarantino dirigió '... Fiction'.", answer:"pulp" }, // (no Q) ejemplo
+      { letter:"R", clue:"Con la R: Héroe arácnido (nombre real).", answer:"peter parker" }, // (no R) ejemplo
+      { letter:"S", clue:"Con la S: Serie animada chilena de noticiero con títeres.", answer:"31 minutos" },
+      { letter:"T", clue:"Con la T: Titán que chasquea los dedos (Marvel).", answer:"thanos" },
+      { letter:"U", clue:"Con la U: Película de Disney con una casa mágica y música.", answer:"encanto" }, // (no U) ejemplo
+      { letter:"V", clue:"Con la V: Villano de Star Wars con respiración icónica.", answer:"vader" },
+      { letter:"W", clue:"Con la W: Brujo con gafas en saga juvenil (abreviado).", answer:"hp" }, // ejemplo
+      { letter:"X", clue:"Con la X: Saga de mutantes de Marvel.", answer:"x-men" },
+      { letter:"Y", clue:"Con la Y: Maestro Jedi verde bajito.", answer:"yoda" },
+      { letter:"Z", clue:"Con la Z: Serie sobre muertos vivientes.", answer:"the walking dead" } // (no Z) ejemplo
+    ]
+  },
+  {
+    name: "Set 3 (Tecnología)",
+    useEnye: false, // sin ñ para ejemplo
+    questions: [
+      { letter:"A", clue:"Con la A: Lenguaje de programación de Android (antes de Kotlin).", answer:"java" }, // (no A) ejemplo
+      { letter:"B", clue:"Con la B: Sistema de control de versiones muy usado.", answer:"git" }, // (no B) ejemplo
+      { letter:"C", clue:"Con la C: Hoja de estilos para la web.", answer:"css" },
+      { letter:"D", clue:"Con la D: Lenguaje usado en Flutter.", answer:"dart" },
+      { letter:"E", clue:"Con la E: Formato de imagen con transparencia (siglas).", answer:"png" }, // (no E) ejemplo
+      { letter:"F", clue:"Con la F: Librería UI de Google para apps móviles.", answer:"flutter" },
+      { letter:"G", clue:"Con la G: Plataforma para alojar repositorios.", answer:"github" },
+      { letter:"H", clue:"Con la H: Lenguaje de marcado para páginas web.", answer:"html" },
+      { letter:"I", clue:"Con la I: Protocolo para páginas seguras.", answer:"https" }, // (no I) ejemplo
+      { letter:"J", clue:"Con la J: Lenguaje que corre en el navegador.", answer:"javascript" },
+      { letter:"K", clue:"Con la K: Servicio de contenedores de Google (abreviado).", answer:"gke" }, // ejemplo
+      { letter:"L", clue:"Con la L: Sistema operativo del pingüino.", answer:"linux" },
+      { letter:"M", clue:"Con la M: Base de datos muy usada con PHP.", answer:"mysql" },
+      { letter:"N", clue:"Con la N: Runtime de JS fuera del navegador.", answer:"node" },
+      { letter:"O", clue:"Con la O: Paquete para describir APIs (OpenAPI).", answer:"swagger" }, // (no O) ejemplo
+      { letter:"P", clue:"Con la P: Lenguaje servidor muy común.", answer:"php" },
+      { letter:"Q", clue:"Con la Q: Herramienta de línea de comandos de Google Cloud.", answer:"gcloud" }, // (no Q) ejemplo
+      { letter:"R", clue:"Con la R: Framework web de Microsoft.", answer:"asp.net" }, // (no R) ejemplo
+      { letter:"S", clue:"Con la S: Lenguaje para consultar bases de datos.", answer:"sql" },
+      { letter:"T", clue:"Con la T: Lenguaje tipado que compila a JS.", answer:"typescript" },
+      { letter:"U", clue:"Con la U: Sistema de control de versiones centralizado antiguo.", answer:"subversion" }, // (no U) ejemplo
+      { letter:"V", clue:"Con la V: Editor de código muy popular (siglas).", answer:"vscode" },
+      { letter:"W", clue:"Con la W: Subsistema de Windows para Linux (siglas).", answer:"wsl" },
+      { letter:"X", clue:"Con la X: Lenguaje para describir interfaces en Android (antiguo).", answer:"xml" },
+      { letter:"Y", clue:"Con la Y: Formato de configuración legible para humanos.", answer:"yaml" },
+      { letter:"Z", clue:"Con la Z: Archivo comprimido común.", answer:"zip" }
+    ]
+  },
+  {
+    name: "Set 4 (MX / Cultura)",
+    useEnye: true,
+    questions: [
+      { letter:"A", clue:"Con la A: Bebida mexicana de cacao y maíz.", answer:"atole" },
+      { letter:"B", clue:"Con la B: Pan dulce en forma de concha (otra opción).", answer:"bolillo" }, // (no B) ejemplo
+      { letter:"C", clue:"Con la C: Pan dulce típico con forma de caparazón.", answer:"concha" },
+      { letter:"D", clue:"Con la D: Comida mexicana enrollada, suele ir frita.", answer:"taco" }, // (no D) ejemplo
+      { letter:"E", clue:"Con la E: Estadio de CDMX donde juega la selección (apodo).", answer:"azteca" }, // (no E) ejemplo
+      { letter:"F", clue:"Con la F: Fiesta popular con ofrenda a los difuntos.", answer:"dia de muertos" }, // (no F) ejemplo
+      { letter:"G", clue:"Con la G: Salsita verde famosa hecha con tomatillo.", answer:"guacamole" }, // (no G) ejemplo
+      { letter:"H", clue:"Con la H: Grito típico al cantar mariachi: “¡_____!”", answer:"ajua" }, // (no H) ejemplo
+      { letter:"I", clue:"Con la I: Juego de lotería donde gritan cartas como 'el catrín'.", answer:"loteria" }, // (no I) ejemplo
+      { letter:"J", clue:"Con la J: Bebida de maíz fermentado (occidente).", answer:"tejuino" }, // (no J) ejemplo
+      { letter:"K", clue:"Con la K: Marca de cereal famosa (comienza con K).", answer:"kelloggs" },
+      { letter:"L", clue:"Con la L: Platillo de tortilla con salsa y queso.", answer:"chilaquiles" }, // (no L) ejemplo
+      { letter:"M", clue:"Con la M: Comida con masa y relleno envuelta en hoja.", answer:"tamal" }, // (no M) ejemplo
+      { letter:"N", clue:"Con la N: Planta del desierto, se usa para tequila.", answer:"agave" }, // (no N) ejemplo
+      { letter:"Ñ", clue:"Con la Ñ: Dulce cristalizado típico.", answer:"ñame" }, // ejemplo
+      { letter:"O", clue:"Con la O: Piedra volcánica porosa usada en cocina.", answer:"molcajete" }, // (no O) ejemplo
+      { letter:"P", clue:"Con la P: Comida mexicana de maíz rellena (famosa).", answer:"pozole" }, // (no P) ejemplo
+      { letter:"Q", clue:"Con la Q: Quesadilla lleva...", answer:"queso" },
+      { letter:"R", clue:"Con la R: Bebida roja mexicana hecha con jamaica.", answer:"agua de jamaica" }, // ejemplo
+      { letter:"S", clue:"Con la S: Salsa muy picante en polvo (en snacks).", answer:"tajin" }, // (no S) ejemplo
+      { letter:"T", clue:"Con la T: Comida mexicana icónica en tortilla.", answer:"taco" },
+      { letter:"U", clue:"Con la U: Universidad pública muy famosa en CDMX (siglas).", answer:"unam" },
+      { letter:"V", clue:"Con la V: Estado mexicano cuya capital es Xalapa.", answer:"veracruz" },
+      { letter:"W", clue:"Con la W: Palabra inglesa para red inalámbrica.", answer:"wifi" },
+      { letter:"X", clue:"Con la X: Ciudad de Oaxaca famosa por 'Guelaguetza'.", answer:"oaxaca" }, // (no X) ejemplo
+      { letter:"Y", clue:"Con la Y: Conjunto de letras para escribir: el ____.", answer:"alfabeto" }, // (no Y) ejemplo
+      { letter:"Z", clue:"Con la Z: Animal que aparece en el escudo de México (en mito).", answer:"aguila" } // (no Z) ejemplo
+    ]
+  }
+];
+
+// ====== Estado ======
+const state = {
+  started: false,
+  timerId: null,
+  seconds: 0,
+  currentIndex: 0,
+  items: [],
+  currentSetName: "",
+};
+
+const els = {
+  rosco: document.getElementById("rosco"),
+  qTitle: document.getElementById("qTitle"),
+  qText: document.getElementById("qText"),
+  answer: document.getElementById("answer"),
+  startBtn: document.getElementById("startBtn"),
+  passBtn: document.getElementById("passBtn"),
+  sendBtn: document.getElementById("sendBtn"),
+  revealBtn: document.getElementById("revealBtn"),
+  finishBtn: document.getElementById("finishBtn"),
+  list: document.getElementById("list"),
+  endSummary: document.getElementById("endSummary"),
+  time: document.getElementById("time"),
+  ok: document.getElementById("ok"),
+  bad: document.getElementById("bad"),
+  pending: document.getElementById("pending"),
+  setSelect: document.getElementById("setSelect"),
+  jsonFile: document.getElementById("jsonFile"),
+  resetToSetBtn: document.getElementById("resetToSetBtn")
+};
+
+function normalize(s){
+  return (s ?? "")
+    .toString()
+    .trim()
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/\s+/g," ");
+}
+
+function formatTime(sec){
+  const mm = String(Math.floor(sec/60)).padStart(2,"0");
+  const ss = String(sec%60).padStart(2,"0");
+  return `${mm}:${ss}`;
+}
+
+function buildGameItems(questions){
+  const LETTERS = buildLetters();
+
+  const map = new Map();
+  for (const q of questions){
+    const L = (q.letter || "").toUpperCase();
+    if (!L) continue;
+    map.set(L, {
+      letter: L,
+      clue: q.clue ?? `Con la ${L}: (sin pista)`,
+      answer: normalize(q.answer ?? ""),
+      status: "pending",
+      userAnswer: ""
+    });
+  }
+
+  state.items = LETTERS.map(L => {
+    if (map.has(L)) return map.get(L);
+    return {
+      letter: L,
+      clue: `Con la ${L}: (sin pregunta definida)`,
+      answer: "",
+      status: "pending",
+      userAnswer: ""
+    };
+  });
+}
+
+function renderRosco(){
+  // borrar letras previas (sin borrar el hueco central)
+  [...els.rosco.querySelectorAll(".letter")].forEach(n => n.remove());
+
+  const w = els.rosco.clientWidth || 440;
+  const h = els.rosco.clientHeight || 440;
+  const cx = w/2, cy = h/2;
+  const radius = Math.min(w,h)/2 - 28;
+
+  const n = state.items.length;
+  for (let i=0;i<n;i++){
+    const angle = (Math.PI*2) * (i/n) - Math.PI/2;
+    const x = cx + radius*Math.cos(angle);
+    const y = cy + radius*Math.sin(angle);
+
+    const div = document.createElement("div");
+    div.className = `letter ${state.items[i].status}`;
+    div.textContent = state.items[i].letter;
+    div.style.left = (x - 21) + "px";
+    div.style.top  = (y - 21) + "px";
+    div.dataset.idx = String(i);
+
+    div.addEventListener("click", () => {
+      if (!state.started) return;
+      state.currentIndex = i;
+      focusCurrent();
+    });
+
+    els.rosco.appendChild(div);
+  }
+  updateActiveLetter();
+}
+
+function renderList(){
+  els.list.innerHTML = "";
+  state.items.forEach((it, i) => {
+    const card = document.createElement("div");
+    card.className = "item";
+
+    const badgeCls = it.status === "ok" ? "ok" : it.status === "bad" ? "bad" : "pending";
+    const badgeText = it.status === "ok" ? "✅ Correcta" : it.status === "bad" ? "❌ Incorrecta" : "⏳ Pendiente";
+
+    card.innerHTML = `
+      <div class="top">
+        <div><b>${it.letter}</b> <span style="color:var(--muted)">· ${it.clue}</span></div>
+        <span class="badge ${badgeCls}">${badgeText}</span>
+      </div>
+      <div class="small">
+        Tu respuesta: <b>${it.userAnswer ? it.userAnswer : "—"}</b>
+        ${it.status !== "pending" && it.answer ? ` · Respuesta: <b>${it.answer}</b>` : ""}
+      </div>
+    `;
+    card.addEventListener("click", () => {
+      if (!state.started) return;
+      state.currentIndex = i;
+      focusCurrent();
+    });
+
+    els.list.appendChild(card);
+  });
+}
+
+function updateStats(){
+  const ok = state.items.filter(i => i.status==="ok").length;
+  const bad = state.items.filter(i => i.status==="bad").length;
+  const pending = state.items.filter(i => i.status==="pending").length;
+  els.ok.textContent = ok;
+  els.bad.textContent = bad;
+  els.pending.textContent = pending;
+}
+
+function updateActiveLetter(){
+  const nodes = [...els.rosco.querySelectorAll(".letter")];
+  nodes.forEach(n => n.classList.remove("active"));
+  const active = nodes.find(n => Number(n.dataset.idx) === state.currentIndex);
+  if (active) active.classList.add("active");
+}
+
+function showQuestion(){
+  const it = state.items[state.currentIndex];
+  els.qTitle.textContent = `Letra: ${it.letter}  ·  ${state.currentSetName}`;
+  els.qText.textContent = it.clue;
+}
+
+function focusCurrent(){
+  showQuestion();
+  updateActiveLetter();
+  els.answer.value = "";
+  els.answer.focus();
+}
+
+function nextPending(fromIndex){
+  const n = state.items.length;
+  for (let step=1; step<=n; step++){
+    const idx = (fromIndex + step) % n;
+    if (state.items[idx].status === "pending") return idx;
+  }
+  return -1;
+}
+
+function setLetterStatus(idx, status, userAnswer=""){
+  state.items[idx].status = status;
+  state.items[idx].userAnswer = userAnswer;
+
+  const node = [...els.rosco.querySelectorAll(".letter")].find(n => Number(n.dataset.idx)===idx);
+  if (node){
+    node.classList.remove("pending","ok","bad");
+    node.classList.add(status);
+  }
+  renderList();
+  updateStats();
+}
+
+function endGame(){
+  state.started = false;
+  clearInterval(state.timerId);
+  state.timerId = null;
+
+  const ok = state.items.filter(i => i.status==="ok").length;
+  const bad = state.items.filter(i => i.status==="bad").length;
+  const pending = state.items.filter(i => i.status==="pending").length;
+
+  els.endSummary.textContent = `Fin del juego. Set: ${state.currentSetName} · Tiempo: ${formatTime(state.seconds)} · ✅ ${ok} · ❌ ${bad} · ⏳ ${pending}`;
+  els.qTitle.textContent = "Juego terminado";
+  els.qText.textContent = "Pulsa Iniciar para jugar otra vez (se reinicia el rosco).";
+}
+
+function tick(){
+  state.seconds += 1;
+  els.time.textContent = formatTime(state.seconds);
+}
+
+function startGame(){
+  state.currentIndex = 0;
+  state.seconds = 0;
+  els.time.textContent = "00:00";
+  els.endSummary.textContent = "";
+
+  state.started = true;
+  clearInterval(state.timerId);
+  state.timerId = setInterval(tick, 1000);
+
+  renderRosco();
+  renderList();
+  updateStats();
+
+  const first = state.items.findIndex(i => i.status==="pending");
+  state.currentIndex = first >= 0 ? first : 0;
+  focusCurrent();
+}
+
+function submitAnswer(){
+  if (!state.started) return;
+  const it = state.items[state.currentIndex];
+  const user = normalize(els.answer.value);
+
+  if (!user){
+    pass();
+    return;
+  }
+
+  if (!it.answer){
+    setLetterStatus(state.currentIndex, "bad", user);
+  } else if (user === it.answer){
+    setLetterStatus(state.currentIndex, "ok", user);
+  } else {
+    setLetterStatus(state.currentIndex, "bad", user);
+  }
+
+  const nxt = nextPending(state.currentIndex);
+  if (nxt === -1) return endGame();
+  state.currentIndex = nxt;
+  focusCurrent();
+}
+
+function pass(){
+  if (!state.started) return;
+  const nxt = nextPending(state.currentIndex);
+  if (nxt === -1) return endGame();
+  state.currentIndex = nxt;
+  focusCurrent();
+}
+
+function reveal(){
+  if (!state.started) return;
+  const it = state.items[state.currentIndex];
+  const a = it.answer ? it.answer : "(sin respuesta)";
+  alert(`Respuesta: ${a}`);
+}
+
+// ====== Sets / JSON ======
+function populateSetSelect(){
+  els.setSelect.innerHTML = "";
+  SETS.forEach((s, idx) => {
+    const opt = document.createElement("option");
+    opt.value = String(idx);
+    opt.textContent = s.name;
+    els.setSelect.appendChild(opt);
+  });
+}
+
+function loadSetByIndex(idx){
+  const set = SETS[idx];
+  if (!set) return;
+
+  USE_ENYE = !!set.useEnye;
+  state.currentSetName = set.name;
+
+  buildGameItems(set.questions);
+  renderRosco();
+  renderList();
+  updateStats();
+
+  els.qTitle.textContent = "Letra:";
+  els.qText.textContent = `Set cargado: ${set.name}. Pulsa “Iniciar”.`;
+}
+
+async function loadFromJsonFile(file){
+  const text = await file.text();
+  const data = JSON.parse(text);
+
+  const useEnye = data.useEnye ?? true;
+  const questions = data.questions ?? data.QUESTIONS ?? [];
+
+  if (!Array.isArray(questions)) {
+    alert("JSON inválido: 'questions' debe ser un arreglo.");
+    return;
+  }
+
+  USE_ENYE = !!useEnye;
+  state.currentSetName = file.name;
+
+  buildGameItems(questions);
+  renderRosco();
+  renderList();
+  updateStats();
+
+  endGame(); // detener si estaba corriendo
+  els.qTitle.textContent = "Letra:";
+  els.qText.textContent = `JSON cargado: ${file.name}. Pulsa “Iniciar”.`;
+}
+
+// ====== Eventos UI ======
+els.startBtn.addEventListener("click", startGame);
+els.sendBtn.addEventListener("click", submitAnswer);
+els.passBtn.addEventListener("click", pass);
+els.revealBtn.addEventListener("click", reveal);
+els.finishBtn.addEventListener("click", endGame);
+
+els.setSelect.addEventListener("change", () => {
+  endGame();
+  loadSetByIndex(Number(els.setSelect.value));
+});
+
+els.resetToSetBtn.addEventListener("click", () => {
+  endGame();
+  loadSetByIndex(Number(els.setSelect.value));
+});
+
+els.jsonFile.addEventListener("change", async () => {
+  const f = els.jsonFile.files?.[0];
+  if (!f) return;
+  try{
+    await loadFromJsonFile(f);
+  }catch(err){
+    console.error(err);
+    alert("No se pudo cargar el JSON. Revisa el formato.");
+  } finally {
+    els.jsonFile.value = "";
+  }
+});
+
+window.addEventListener("keydown", (e) => {
+  const isTypingInAnswer = document.activeElement === els.answer;
+
+  if (e.key === "Enter") {
+    e.preventDefault();
+    submitAnswer();
+    return;
+  }
+
+  if (e.key === "Escape") {
+    e.preventDefault();
+    endGame();
+    return;
+  }
+
+  // Espacio:
+  // - Si estás escribiendo en el input y ya hay texto -> permitir espacio para respuestas con varias palabras
+  // - Si NO estás escribiendo en el input, o el input está vacío -> usar espacio como "Pasar"
+  if (e.key === " ") {
+    const hasTypedText = els.answer.value.trim().length > 0;
+
+    if (isTypingInAnswer && hasTypedText) {
+      // Deja que escriba un espacio normal
+      return;
+    }
+
+    // Si no hay texto (o no estás en el input), entonces "Pasar"
+    e.preventDefault();
+    pass();
+  }
+});
+
+
+// ====== Init ======
+populateSetSelect();
+loadSetByIndex(0);
+</script>
+</body>
+</html>

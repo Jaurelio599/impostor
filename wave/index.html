@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Wavelength (dial.png + giro por mantener presionado)</title>
+<style>
+  :root{
+    --bg:#0b1c2d;
+    --panel:#081421;
+    --line:#1e3a5f;
+    --accent:#1e90ff;
+    --ghost:#3a4a5a;
+
+    --white:#ff0000;
+    --muted:#9fb5c9;
+
+    /* tapas sólidas (sin transparencia) */
+    --coverSolid: rgb(10,15,24);
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; font-family:system-ui,Segoe UI,Roboto,Arial; background:var(--bg); color:#fff; }
+  .wrap{ display:flex; height:100vh; }
+  .game{ flex:2; padding:18px; border-right:3px solid var(--line); overflow:auto; }
+  .ctrl{ flex:1; padding:16px; background:var(--panel); overflow:auto; }
+
+  .card{
+    border:1px solid rgba(255,255,255,.10);
+    background:rgba(255,255,255,.03);
+    border-radius:14px;
+    padding:12px;
+    margin-bottom:12px;
+  }
+  .topbar{ display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+  .pill{
+    font-size:12px; color:var(--muted);
+    padding:6px 10px; border-radius:999px;
+    border:1px solid rgba(255,255,255,.14);
+    background:rgba(255,255,255,.04);
+  }
+  .muted{ color:var(--muted); font-size:12px; }
+
+  button{
+    width:100%;
+    border:none; border-radius:12px;
+    padding:12px 12px;
+    font-weight:800;
+    cursor:pointer;
+    margin:6px 0;
+    font-size:14px;
+    user-select:none;
+    -webkit-user-select:none;
+    touch-action: manipulation;
+  }
+  .primary{ background:var(--accent); color:#fff; }
+  .ghost{ background:var(--ghost); color:#fff; }
+
+  /* ====== Escena ====== */
+  .stage{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    padding:14px 0;
+  }
+  .rig{
+    position:relative;
+    width:min(620px, 96vw);
+    aspect-ratio: 1 / 1;
+  }
+
+  /* rueda con imagen */
+  .wheel{
+    position:absolute;
+    inset:0;
+    border-radius:50%;
+    overflow:hidden;
+    display:grid;
+    place-items:center;
+    background: rgba(255,255,255,.04);
+    border:2px solid rgba(255,255,255,.10);
+  }
+  .wheel img{
+    width:100%;
+    height:100%;
+    object-fit:contain; /* por si tu dial.png es transparente y no llena */
+    transform: rotate(0deg);
+    user-select:none;
+    -webkit-user-drag:none;
+    pointer-events:none;
+  }
+
+  /* Coberturas */
+  .coverBottom{
+    position:absolute;
+    inset:0;
+    border-radius:50%;
+    background: var(--coverSolid);
+    clip-path: inset(50% 0 0 0); /* abajo siempre cubierto (más de la mitad) */
+    pointer-events:none;
+  }
+
+  .coverTop{
+    position:absolute;
+    inset:0;
+    border-radius:50%;
+    background: var(--coverSolid);
+    clip-path: inset(0 0 45% 0); /* arriba se tapa/destapa */
+    opacity:1;
+    transition: opacity 160ms ease;
+    pointer-events:none;
+  }
+  .coverTop.off{ opacity:0; }
+
+  /* Aguja */
+  .needleLayer{
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+  }
+  .needleLayer svg{ width:100%; height:100%; }
+
+  /* Cambia color aquí si quieres */
+  #needleLine{ stroke: var(--white); stroke-width:10; stroke-linecap:round; }
+  #needleHub{ fill: var(--white); }
+
+  .dragLayer{
+    position:absolute;
+    inset:0;
+    border-radius:50%;
+    cursor:grab;
+  }
+  .dragLayer:active{ cursor:grabbing; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- JUEGO -->
+  <section class="game">
+    <div class="card topbar">
+      <div>
+        <div style="font-weight:900;">Wavelength (dial.png)</div>
+        <div class="muted">Mantén presionado “Girar” para girar. Suelta y se frena con inercia.</div>
+      </div>
+      <div class="pill" id="statePill">Arriba tapado ✅</div>
+    </div>
+
+    <div class="card">
+      <div class="stage">
+        <div class="rig">
+
+          <div class="wheel">
+            <!-- Precarga por default -->
+            <img id="wheelImg" alt="Dial" src="dial.png" />
+          </div>
+
+          <div class="coverBottom"></div>
+          <div class="coverTop" id="coverTop"></div>
+
+          <div class="needleLayer">
+            <svg viewBox="0 0 1000 1000" aria-hidden="true">
+              <line id="needleLine" x1="500" y1="500" x2="500" y2="160"></line>
+              <circle id="needleHub" cx="500" cy="500" r="26"></circle>
+            </svg>
+          </div>
+
+          <div class="dragLayer" id="dragLayer" title="Arrastra para mover la aguja"></div>
+
+        </div>
+      </div>
+
+      <div class="muted" style="text-align:center;">
+        Asegúrate de tener <b>dial.png</b> en la misma carpeta que este HTML.
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTROL -->
+  <aside class="ctrl">
+    <div class="card">
+      <div style="font-weight:900; margin-bottom:6px;">Control</div>
+
+      <!-- IMPORTANTE: girar por mantener presionado -->
+      <button class="primary" id="btnSpinHold">🎲 Girar (mantén presionado)</button>
+      <button class="ghost" id="btnCoverTop">🕶️ Tapar/Destapar ARRIBA</button>
+      <button class="ghost" id="btnCenterNeedle">🎯 Centrar aguja</button>
+
+      <div class="muted" style="margin-top:10px;">
+        Si el botón no responde bien en móvil, mantén presionado 1s y suelta.
+      </div>
+    </div>
+  </aside>
+
+</div>
+
+<script>
+  const wheelImg = document.getElementById("wheelImg");
+  const coverTop = document.getElementById("coverTop");
+  const statePill = document.getElementById("statePill");
+
+  const btnSpinHold = document.getElementById("btnSpinHold");
+  const btnCoverTop = document.getElementById("btnCoverTop");
+  const btnCenterNeedle = document.getElementById("btnCenterNeedle");
+
+  const dragLayer = document.getElementById("dragLayer");
+  const needleLine = document.getElementById("needleLine");
+
+  // ===== Tapar/Destapar arriba =====
+  let topCovered = true;
+  function setTopCovered(v){
+    topCovered = v;
+    coverTop.classList.toggle("off", !topCovered);
+    statePill.textContent = topCovered ? "Arriba tapado ✅" : "Arriba destapado 👀";
+  }
+  btnCoverTop.addEventListener("click", ()=> setTopCovered(!topCovered));
+
+  // ===== Aguja arrastrable =====
+  function deg2rad(d){ return d * Math.PI/180; }
+  let needleAngle = 0;
+
+  function setNeedleAngle(deg){
+    needleAngle = Math.max(-170, Math.min(170, deg));
+    const r = 340;
+    const a = deg2rad(needleAngle - 90);
+    const x2 = 500 + Math.cos(a)*r;
+    const y2 = 500 + Math.sin(a)*r;
+    needleLine.setAttribute("x2", x2);
+    needleLine.setAttribute("y2", y2);
+  }
+
+  let dragging = false;
+  function angleFromPointer(e){
+    const rect = dragLayer.getBoundingClientRect();
+    const cx = rect.left + rect.width/2;
+    const cy = rect.top + rect.height/2;
+    const dx = e.clientX - cx;
+    const dy = e.clientY - cy;
+    let ang = Math.atan2(dy, dx) * 180/Math.PI + 90;
+    if (ang > 180) ang -= 360;
+    return ang;
+  }
+
+  dragLayer.addEventListener("pointerdown", (e)=>{
+    dragging = true;
+    dragLayer.setPointerCapture(e.pointerId);
+    setNeedleAngle(angleFromPointer(e));
+  });
+  dragLayer.addEventListener("pointermove", (e)=>{
+    if (!dragging) return;
+    setNeedleAngle(angleFromPointer(e));
+  });
+  dragLayer.addEventListener("pointerup", ()=> dragging = false);
+
+  btnCenterNeedle.addEventListener("click", ()=> setNeedleAngle(0));
+
+  // ===== Giro por mantener presionado + inercia =====
+  let wheelAngle = 0;     // grados acumulados
+  let spinning = false;  // está presionado
+  let raf = null;
+
+  // Velocidad angular (deg/s) y amortiguación
+  let omega = 0;                   // deg/s
+  const HOLD_ACCEL = 1400;         // acel al mantener (deg/s^2)
+  const MAX_OMEGA = 1800;          // límite (deg/s)
+  const FRICTION = 1.8;            // fricción (1/s) más alto = frena más rápido
+
+  let lastT = null;
+
+  function applyWheelTransform(){
+    wheelImg.style.transform = `rotate(${wheelAngle}deg)`;
+  }
+
+  function tick(t){
+    if (lastT == null) lastT = t;
+    const dt = (t - lastT) / 1000; // segundos
+    lastT = t;
+
+    if (spinning){
+      // mientras presionas: acelera
+      omega = Math.min(MAX_OMEGA, omega + HOLD_ACCEL * dt);
+    }else{
+      // al soltar: frena suave con inercia (exponencial)
+      // omega' = omega - FRICTION*omega*dt
+      omega = omega * Math.exp(-FRICTION * dt);
+      // si ya casi se detuvo, paramos RAF
+      if (Math.abs(omega) < 5){
+        omega = 0;
+        raf = null;
+        lastT = null;
+        return;
+      }
+    }
+
+    wheelAngle += omega * dt;
+    applyWheelTransform();
+    raf = requestAnimationFrame(tick);
+  }
+
+  function startSpin(){
+    // al iniciar giro, tapa arriba para que no se vean números
+   // setTopCovered(true);
+
+    spinning = true;
+    // si estaba casi detenido, dale un empujón inicial
+    if (omega < 60) omega = 200;
+
+    if (!raf){
+      lastT = null;
+      raf = requestAnimationFrame(tick);
+    }
+  }
+
+  function stopSpin(){
+    spinning = false;
+    // el RAF sigue corriendo hasta que omega llegue casi a 0
+    if (!raf){
+      lastT = null;
+      raf = requestAnimationFrame(tick);
+    }
+  }
+
+  // pointer events (mejor que mousedown/touch)
+  btnSpinHold.addEventListener("pointerdown", (e)=>{
+    e.preventDefault();
+    btnSpinHold.setPointerCapture(e.pointerId);
+    startSpin();
+  });
+  btnSpinHold.addEventListener("pointerup", ()=> stopSpin());
+  btnSpinHold.addEventListener("pointercancel", ()=> stopSpin());
+  btnSpinHold.addEventListener("pointerleave", ()=>{
+    // si se sale del botón mientras está presionado, igual suelta
+    if (spinning) stopSpin();
+  });
+
+  // ===== Init =====
+  setNeedleAngle(0);
+  setTopCovered(true);
+  applyWheelTransform();
+</script>
+</body>
+</html>

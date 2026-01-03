@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>100 Mexicanos Dijeron (2 Paneles)</title>
+<style>
+  :root{
+    --bg:#0b1c2d;
+    --panel:#081421;
+    --line:#1e3a5f;
+    --card:#123456;
+    --accent:#1e90ff;
+    --danger:#dc143c;
+    --ok:#2ecc71;
+    --muted:#9fb5c9;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0;
+    font-family: Arial, sans-serif;
+    background:var(--bg);
+    color:#fff;
+  }
+  .container{ display:flex; height:100vh; }
+
+  /* ===== PANEL JUEGO ===== */
+  .game-panel{
+    flex:2;
+    padding:20px;
+    border-right:3px solid var(--line);
+    overflow:auto;
+  }
+  .question{
+    font-size:28px;
+    text-align:center;
+    margin-bottom:18px;
+    font-weight:700;
+  }
+  .round-meta{
+    text-align:center;
+    margin-bottom:18px;
+    color:var(--muted);
+  }
+  .board{
+    display:grid;
+    grid-template-columns: 1fr 90px;
+    gap:10px;
+    max-width:900px;
+    margin:0 auto;
+  }
+  .cell{
+    border-radius:10px;
+    padding:14px 14px;
+    font-size:22px;
+    background:var(--card);
+    border:1px solid rgba(255,255,255,.08);
+  }
+  .points{
+    text-align:center;
+    font-weight:800;
+    background:linear-gradient(180deg, rgba(30,144,255,.95), rgba(30,144,255,.65));
+  }
+  .hidden{
+    background:#000;
+    color:#000;
+    border:1px solid rgba(255,255,255,.06);
+  }
+  .revealed{
+    animation: pop .18s ease-out;
+  }
+  @keyframes pop{
+    from{ transform:scale(.98); filter:brightness(.9); }
+    to{ transform:scale(1); filter:brightness(1); }
+  }
+  .footer{
+    max-width:900px;
+    margin:22px auto 0;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+  .score{ font-size:26px; font-weight:700; }
+  .strikes{ font-size:30px; color:var(--danger); letter-spacing:2px; }
+  .note{ color:var(--muted); font-size:14px; }
+
+  /* ===== PANEL CONTROL ===== */
+  .control-panel{
+    flex:1;
+    padding:18px;
+    background:var(--panel);
+    overflow-y:auto; /* scroll independiente */
+  }
+  h2{
+    margin:0 0 10px;
+    text-align:center;
+  }
+  .box{
+    border:1px solid rgba(255,255,255,.10);
+    border-radius:12px;
+    padding:12px;
+    background:rgba(255,255,255,.03);
+    margin-bottom:12px;
+  }
+  .row{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    align-items:center;
+  }
+  button{
+    border:none;
+    border-radius:8px;
+    padding:10px 12px;
+    cursor:pointer;
+    font-weight:700;
+  }
+  .btn{
+    width:100%;
+    margin:6px 0;
+    font-size:15px;
+  }
+  .primary{ background:var(--accent); color:#fff; }
+  .danger{ background:var(--danger); color:#fff; }
+  .ghost{ background:#3a4a5a; color:#fff; }
+  .ok{ background:var(--ok); color:#081421; }
+  .mini{
+    padding:6px 10px;
+    font-size:13px;
+    border-radius:7px;
+  }
+  .sep{ height:1px; background:rgba(255,255,255,.10); margin:10px 0; }
+
+  .answer-list{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    margin-top:8px;
+  }
+  .answer-item{
+    display:grid;
+    grid-template-columns: 44px 1fr 70px;
+    gap:8px;
+    align-items:center;
+    padding:10px;
+    border-radius:10px;
+    border:1px solid rgba(255,255,255,.10);
+    background:rgba(0,0,0,.18);
+  }
+  .badge{
+    width:44px;
+    height:32px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:8px;
+    background:rgba(30,144,255,.18);
+    border:1px solid rgba(30,144,255,.35);
+    font-weight:800;
+  }
+  .ans-text{
+    font-size:14px;
+    color:#fff;
+    line-height:1.2;
+  }
+  .ans-points{
+    text-align:right;
+    font-weight:900;
+    color:#fff;
+  }
+  .ans-actions{
+    display:flex;
+    gap:6px;
+    margin-top:8px;
+    flex-wrap:wrap;
+  }
+
+  input[type="file"]{
+    width:100%;
+    padding:8px;
+    border-radius:10px;
+    border:1px solid rgba(255,255,255,.14);
+    background:rgba(0,0,0,.25);
+    color:#fff;
+  }
+  .small{
+    font-size:12px;
+    color:var(--muted);
+    margin-top:6px;
+  }
+  code{
+    display:block;
+    white-space:pre-wrap;
+    word-break:break-word;
+    background:rgba(0,0,0,.25);
+    border:1px solid rgba(255,255,255,.10);
+    padding:10px;
+    border-radius:10px;
+    color:#d6e6ff;
+    font-size:12px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- PANEL JUEGO -->
+  <section class="game-panel">
+    <div class="question" id="question"></div>
+    <div class="round-meta" id="roundMeta"></div>
+    <div class="board" id="board"></div>
+
+    <div class="footer">
+      <div class="score">Puntos: <span id="total">0</span></div>
+      <div class="strikes" id="strikes"></div>
+      <div class="note" id="packName"></div>
+    </div>
+  </section>
+
+  <!-- PANEL CONTROL -->
+  <aside class="control-panel">
+    <h2>Panel de Control</h2>
+
+    <div class="box">
+      <div class="row" style="justify-content:space-between;">
+        <div><b>Ronda:</b> <span id="roundIndex">1</span> / <span id="roundCount">1</span></div>
+        <button class="mini ghost" onclick="togglePreview()">Mostrar/Ocultar vista previa</button>
+      </div>
+
+      <div class="sep"></div>
+
+      <button class="btn danger" onclick="addStrike()">❌ Error</button>
+      <button class="btn ghost" onclick="resetStrikes()">Limpiar Errores</button>
+      <button class="btn ok" onclick="nextRound()">Siguiente Ronda ▶</button>
+      <button class="btn ghost" onclick="restartPack()">Reiniciar Pack</button>
+    </div>
+
+    <div class="box">
+      <b>Cargar pack desde JSON</b>
+      <div class="small">Selecciona un archivo .json con varias rondas.</div>
+      <input id="jsonFile" type="file" accept="application/json" />
+      <button class="btn primary" onclick="loadFromFile()">Cargar JSON</button>
+      <div class="small">Tip: esto corre local. Si el navegador no deja leer archivos, usa “Live Server” o súbelo a GitHub Pages.</div>
+    </div>
+
+    <div class="box">
+      <b>Respuestas de la ronda (para el conductor)</b>
+      <div class="small" id="previewState"></div>
+      <div id="answerList" class="answer-list"></div>
+    </div>
+
+    <div class="box">
+      <b>Ejemplo de JSON</b>
+      <div class="small">Puedes copiarlo a un archivo llamado <i>pack.json</i> y cargarlo.</div>
+      <code id="jsonExample"></code>
+    </div>
+  </aside>
+
+</div>
+
+<script>
+/** ===== PACK POR DEFECTO (5 rondas) ===== */
+const defaultPack = {
+  packName: "Pack Demo (5 rondas)",
+  rounds: [
+    {
+      question: "Nombra algo que haces antes de dormir",
+      answers: [
+        { text: "Cepillarte los dientes", points: 30 },
+        { text: "Ver el celular", points: 25 },
+        { text: "Apagar la luz", points: 18 },
+        { text: "Poner alarma", points: 15 },
+        { text: "Rezar / agradecer", points: 12 },
+        { text: "Tomar agua", points: 8 }
+      ]
+    },
+    {
+      question: "Nombra algo que la gente olvida cuando sale de casa",
+      answers: [
+        { text: "Llaves", points: 35 },
+        { text: "Celular", points: 25 },
+        { text: "Cartera", points: 18 },
+        { text: "Lentes", points: 10 },
+        { text: "Cubrebocas", points: 7 },
+        { text: "Cargador", points: 5 }
+      ]
+    },
+    {
+      question: "Nombra una comida típica para una fiesta",
+      answers: [
+        { text: "Tacos", points: 30 },
+        { text: "Pizza", points: 22 },
+        { text: "Pozole", points: 18 },
+        { text: "Tamales", points: 12 },
+        { text: "Botana (papas / cacahuates)", points: 10 },
+        { text: "Pastel", points: 8 }
+      ]
+    },
+    {
+      question: "Nombra algo que haces cuando estás aburrido",
+      answers: [
+        { text: "Ver videos", points: 28 },
+        { text: "Jugar en el celular", points: 22 },
+        { text: "Dormir", points: 18 },
+        { text: "Comer botana", points: 12 },
+        { text: "Escuchar música", points: 10 },
+        { text: "Salir a caminar", points: 8 }
+      ]
+    },
+    {
+      question: "Nombra un lugar donde se hace fila",
+      answers: [
+        { text: "Banco", points: 26 },
+        { text: "Cine", points: 20 },
+        { text: "Tortillería / taquería", points: 18 },
+        { text: "Supermercado", points: 14 },
+        { text: "Transporte público", points: 12 },
+        { text: "Trámites de gobierno", points: 10 }
+      ]
+    }
+  ]
+};
+
+let pack = structuredClone(defaultPack);
+let roundIdx = 0;
+let score = 0;
+let strikes = 0;
+let previewVisible = true;
+
+// DOM
+const qEl = document.getElementById("question");
+const boardEl = document.getElementById("board");
+const totalEl = document.getElementById("total");
+const strikesEl = document.getElementById("strikes");
+const roundMetaEl = document.getElementById("roundMeta");
+const packNameEl = document.getElementById("packName");
+const roundIndexEl = document.getElementById("roundIndex");
+const roundCountEl = document.getElementById("roundCount");
+const answerListEl = document.getElementById("answerList");
+const previewStateEl = document.getElementById("previewState");
+const jsonExampleEl = document.getElementById("jsonExample");
+
+function renderExampleJSON(){
+  const example = {
+    packName: "Mi Pack (ejemplo)",
+    rounds: [
+      {
+        question: "Nombra un superhéroe famoso",
+        answers: [
+          { text:"Spider-Man", points: 35 },
+          { text:"Batman", points: 25 },
+          { text:"Iron Man", points: 18 },
+          { text:"Superman", points: 12 },
+          { text:"Capitán América", points: 10 }
+        ]
+      },
+      {
+        question: "Nombra algo que encuentras en una mochila",
+        answers: [
+          { text:"Cuadernos", points: 30 },
+          { text:"Pluma", points: 20 },
+          { text:"Laptop", points: 15 },
+          { text:"Cargador", points: 12 },
+          { text:"Botella de agua", points: 10 }
+        ]
+      }
+    ]
+  };
+  jsonExampleEl.textContent = JSON.stringify(example, null, 2);
+}
+
+function clampRounds(){
+  // Ordena por puntos desc (por si alguien mete desorden)
+  pack.rounds.forEach(r => r.answers.sort((a,b)=> b.points - a.points));
+}
+
+function loadRound(){
+  clampRounds();
+  const round = pack.rounds[roundIdx];
+
+  // Meta
+  qEl.textContent = round.question;
+  roundMetaEl.textContent = `Ronda ${roundIdx+1} • Respuestas: ${round.answers.length}`;
+  packNameEl.textContent = `Pack: ${pack.packName || "Sin nombre"}`;
+  roundIndexEl.textContent = roundIdx+1;
+  roundCountEl.textContent = pack.rounds.length;
+
+  // Resetea strikes (tú decides: aquí se resetean por ronda)
+  strikes = 0;
+  strikesEl.textContent = "";
+
+  // Tablero (oculto al inicio)
+  boardEl.innerHTML = "";
+  round.answers.forEach((a, i) => {
+    const ans = document.createElement("div");
+    ans.className = "cell hidden";
+    ans.id = `ans-${i}`;
+    ans.textContent = a.text;
+
+    const pts = document.createElement("div");
+    pts.className = "cell points hidden";
+    pts.id = `pts-${i}`;
+    pts.textContent = a.points;
+
+    boardEl.appendChild(ans);
+    boardEl.appendChild(pts);
+  });
+
+  // Panel control: lista visible (con acciones)
+  renderControlAnswers();
+
+  // Puntos se mantienen por pack (si quieres por ronda, pon score=0 aquí)
+  totalEl.textContent = score;
+}
+
+function renderControlAnswers(){
+  const round = pack.rounds[roundIdx];
+  answerListEl.innerHTML = "";
+
+  previewStateEl.textContent = previewVisible
+    ? "Vista previa: ACTIVADA (ves texto y puntos)"
+    : "Vista previa: OCULTA (solo ves # y botones)";
+
+  round.answers.forEach((a, i) => {
+    const item = document.createElement("div");
+    item.className = "answer-item";
+
+    const badge = document.createElement("div");
+    badge.className = "badge";
+    badge.textContent = (i+1);
+
+    const text = document.createElement("div");
+    text.className = "ans-text";
+    text.textContent = previewVisible ? a.text : "••••••••••";
+
+    const pts = document.createElement("div");
+    pts.className = "ans-points";
+    pts.textContent = previewVisible ? a.points : "—";
+
+    const actions = document.createElement("div");
+    actions.className = "ans-actions";
+    actions.style.gridColumn = "1 / -1";
+
+    const btnShow = document.createElement("button");
+    btnShow.className = "mini primary";
+    btnShow.textContent = "Mostrar";
+    btnShow.onclick = () => showAnswer(i);
+
+    const btnHide = document.createElement("button");
+    btnHide.className = "mini ghost";
+    btnHide.textContent = "Ocultar";
+    btnHide.onclick = () => hideAnswer(i);
+
+    actions.appendChild(btnShow);
+    actions.appendChild(btnHide);
+
+    item.appendChild(badge);
+    item.appendChild(text);
+    item.appendChild(pts);
+    item.appendChild(actions);
+
+    answerListEl.appendChild(item);
+  });
+}
+
+function showAnswer(i){
+  const round = pack.rounds[roundIdx];
+  const ans = document.getElementById(`ans-${i}`);
+  const pts = document.getElementById(`pts-${i}`);
+
+  // Evita sumar doble si ya estaba mostrado
+  const wasHidden = ans.classList.contains("hidden");
+
+  ans.classList.remove("hidden");
+  pts.classList.remove("hidden");
+  ans.classList.add("revealed");
+  pts.classList.add("revealed");
+  setTimeout(()=>{ ans.classList.remove("revealed"); pts.classList.remove("revealed"); }, 220);
+
+  if (wasHidden){
+    score += Number(round.answers[i].points) || 0;
+    totalEl.textContent = score;
+  }
+}
+
+function hideAnswer(i){
+  const round = pack.rounds[roundIdx];
+  const ans = document.getElementById(`ans-${i}`);
+  const pts = document.getElementById(`pts-${i}`);
+
+  // Si estaba visible, quita puntos (opcional). Aquí: SÍ los quita para corregir errores.
+  const wasVisible = !ans.classList.contains("hidden");
+  ans.classList.add("hidden");
+  pts.classList.add("hidden");
+
+  if (wasVisible){
+    score -= Number(round.answers[i].points) || 0;
+    if (score < 0) score = 0;
+    totalEl.textContent = score;
+  }
+}
+
+function addStrike(){
+  if (strikes < 3){
+    strikes++;
+    strikesEl.textContent = "❌".repeat(strikes);
+  }
+}
+
+function resetStrikes(){
+  strikes = 0;
+  strikesEl.textContent = "";
+}
+
+function nextRound(){
+  if (pack.rounds.length === 0) return;
+  roundIdx++;
+  if (roundIdx >= pack.rounds.length) roundIdx = 0; // vuelve al inicio
+  loadRound();
+}
+
+function restartPack(){
+  roundIdx = 0;
+  score = 0;
+  totalEl.textContent = 0;
+  loadRound();
+}
+
+function togglePreview(){
+  previewVisible = !previewVisible;
+  renderControlAnswers();
+}
+
+/** ===== CARGA DE JSON ===== */
+function validatePack(obj){
+  if (!obj || typeof obj !== "object") return "El JSON no es un objeto válido.";
+  if (!Array.isArray(obj.rounds) || obj.rounds.length === 0) return "Falta 'rounds' o está vacío.";
+  for (let r = 0; r < obj.rounds.length; r++){
+    const round = obj.rounds[r];
+    if (!round.question || typeof round.question !== "string") return `Ronda ${r+1}: falta 'question' (string).`;
+    if (!Array.isArray(round.answers) || round.answers.length === 0) return `Ronda ${r+1}: falta 'answers' o está vacío.`;
+    for (let a = 0; a < round.answers.length; a++){
+      const ans = round.answers[a];
+      if (!ans.text || typeof ans.text !== "string") return `Ronda ${r+1}, resp ${a+1}: falta 'text' (string).`;
+      if (typeof ans.points !== "number") return `Ronda ${r+1}, resp ${a+1}: 'points' debe ser número.`;
+    }
+  }
+  return null;
+}
+
+async function loadFromFile(){
+  const input = document.getElementById("jsonFile");
+  const file = input.files?.[0];
+  if (!file){
+    alert("Primero selecciona un archivo JSON.");
+    return;
+  }
+
+  try{
+    const text = await file.text();
+    const obj = JSON.parse(text);
+
+    const err = validatePack(obj);
+    if (err){
+      alert("JSON inválido: " + err);
+      return;
+    }
+
+    pack = obj;
+    roundIdx = 0;
+    score = 0;
+    totalEl.textContent = 0;
+    loadRound();
+    alert("✅ Pack cargado: " + (pack.packName || "Sin nombre"));
+  }catch(e){
+    alert("No pude leer ese JSON. Revisa el formato.\n\nDetalle: " + e.message);
+  }
+}
+
+// Init
+renderExampleJSON();
+loadRound();
+</script>
+</body>
+</html>
