@@ -81,7 +81,7 @@
       font-size:12px;
       color:var(--muted);
     }
-    input{
+    input[type="number"], input[type="text"]{
       width:140px;
       max-width:100%;
       padding:10px 10px;
@@ -131,7 +131,7 @@
     }
     @media (max-width: 860px){
       .game{ grid-template-columns:1fr; }
-      input{ width:100%; }
+      input[type="number"], input[type="text"]{ width:100%; }
     }
 
     .status{
@@ -219,6 +219,7 @@
       color:var(--muted);
       font-size:13px;
       line-height:1.35;
+      white-space:pre-line;
     }
 
     .rightPanel{
@@ -251,6 +252,42 @@
       font-size:12px;
       margin:0;
     }
+
+    /* JSON loader */
+    .loaderBox{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      margin-top:12px;
+      padding-top:12px;
+      border-top:1px dashed rgba(255,255,255,.12);
+    }
+    .fileRow{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    input[type="file"]{
+      max-width:100%;
+      padding:8px;
+      border-radius:10px;
+      border:1px solid var(--line);
+      background:#0f1522;
+      color:var(--muted);
+    }
+    .tinyBtn{
+      padding:8px 10px;
+      border-radius:10px;
+      font-size:13px;
+      font-weight:700;
+    }
+    .warn{
+      color:#ffdf8a;
+      font-size:12px;
+      margin:0;
+      white-space:pre-line;
+    }
   </style>
 </head>
 <body>
@@ -258,7 +295,6 @@
     <header>
       <div>
         <p>1 impostor (≤ 6 jugadores) • 2 impostores (> 6 jugadores)</p>
-        <button>soy la adriaa</button>
       </div>
       <div class="pill" id="phasePill">Fase: Configuración</div>
     </header>
@@ -276,9 +312,27 @@
             <button id="resetBtn" class="resetBtn" disabled>Reiniciar</button>
           </div>
         </div>
-        <p class="note">
-          Tip: coloca tus imágenes en <strong>charactersImages/</strong> con nombres tipo <strong>goku.jpg</strong>, <strong>spider-man.jpg</strong>, etc.
-        </p>
+
+        <div class="loaderBox">
+          <div class="fileRow">
+            <label style="min-width:240px;">
+              Cargar personajes (JSON)
+              <input id="jsonFile" type="file" accept="application/json,.json" />
+            </label>
+            <button id="loadJsonBtn" class="nextBtn tinyBtn">Cargar JSON</button>
+            <button id="useDefaultBtn" class="resetBtn tinyBtn">Usar lista default</button>
+          </div>
+
+          <div class="pill" id="charactersPill">Personajes: —</div>
+          <p class="warn" id="jsonMsg" style="display:none;"></p>
+
+          <p class="note">
+            Tip: coloca tus imágenes en <strong>charactersImages/</strong> con nombres tipo <strong>goku.jpg</strong>, <strong>spider-man.jpg</strong>, etc.
+          </p>
+          <p class="note">
+            JSON aceptado: <strong>un arreglo</strong> <em>[ "Gokú", "Mario", ... ]</em> o un objeto <em>{ "characters": [...] }</em>.
+          </p>
+        </div>
       </section>
 
       <section class="game">
@@ -324,20 +378,84 @@
   </div>
 
   <script>
-    // ==========
-    // LISTA DE PERSONAJES (tu lista)
-    // ==========
-const CHARACTERS = [ "Shrek","Fiona","Burro","Gato con Botas","Mickey Mouse", "Minnie Mouse","Pato Donald","Goofy","Simba","Scar", "Ariel","Elsa","Anna","Olaf","Aladdín", "Genio","Woody","Buzz Lightyear","Homero Simpson","Bart Simpson", "Marge Simpson","Lisa Simpson","Bob Esponja","Patricio Estrella","Calamardo", "Batman","Superman","Mujer Maravilla","Guasón","Spider-Man", "Iron Man","Capitán América","Thor","Hulk","Thanos", "Darth Vader","Luke Skywalker","Yoda","Princesa Leia","Han Solo", "Gokú","Vegeta","Naruto Uzumaki","Sasuke Uchiha","Monkey D. Luffy", "Pikachu","Ash Ketchum","Mario","Luigi","Bowser", "Link","Zelda","Sonic", "Harry Potter","Hermione Granger","Ron Weasley","Voldemort","Hagrid", "James Bond","Rocky Balboa","Terminator", "John Wick","Neo","Jack Sparrow", "Davy Jones","Viuda Negra","Doctor Strange","Wolverine","Deadpool", "Profesor X","Magneto","Dobby","Gandalf","Frodo Bolsón", "Legolas","Gollum","Daenerys Targaryen", "Jon Snow","Tyrion Lannister","Cersei Lannister","Arya Stark","Walter White","Rick Sánchez","Morty Smith","Scooby-Doo", "Shaggy","Pedro Picapiedra","Tom","Jerry", "Popeye","Bugs Bunny","Pato Lucas","Elmer Gruñón","Optimus Prime",,"Bumblebee","Godzilla","King Kong","Jason Voorhees", "Freddy Krueger","Michael Myers","Chucky","Pennywise","Dora la Exploradora" ,"Peppa Pig","Hello Kitty","Barbie","Ken", "He-Man","Skeletor","Power Ranger Rojo", "Lara Croft","Joel Miller","Sephiroth","Pac-Man","Mega Man","Sub-Zero","Scorpion","Aang", "Zuko","Korra","Po","Tai Lung","Wall-E","EVA","Rayo McQueen","Mate","Remy","Gru","Minion","Hércules", "Peter Pan","Campanita","Capitán Garfio","Pinocho","Dumbo", "Bambi","Stitch","Mulán","Moana","Baymax","Ben 10","Finn el Humano","Jake el Perro", "Samurai Jack" ];
-    // ==========
+    // ============================================================
+    // LISTA DEFAULT + CARGA POR JSON (sin backend)
+    // ============================================================
 
-    // ==========
+    // Lista default (se usa si no cargas JSON)
+    
+
+const DEFAULT_CHARACTERS = [ "Shrek","Fiona","Burro","Gato con Botas","Mickey Mouse", "Minnie Mouse","Pato Donald","Goofy","Simba","Scar", "Ariel","Elsa","Anna","Olaf","Aladdín", "Genio","Woody","Buzz Lightyear","Homero Simpson","Bart Simpson", "Marge Simpson","Lisa Simpson","Bob Esponja","Patricio Estrella","Calamardo", "Batman","Superman","Mujer Maravilla","Guasón","Spider-Man", "Iron Man","Capitán América","Thor","Hulk","Thanos", "Darth Vader","Luke Skywalker","Yoda","Princesa Leia","Han Solo", "Gokú","Vegeta","Naruto Uzumaki","Sasuke Uchiha","Monkey D. Luffy", "Pikachu","Ash Ketchum","Mario","Luigi","Bowser", "Link","Zelda","Sonic", "Harry Potter","Hermione Granger","Ron Weasley","Voldemort","Hagrid", "James Bond","Rocky Balboa","Terminator", "John Wick","Neo","Jack Sparrow", "Davy Jones","Viuda Negra","Doctor Strange","Wolverine","Deadpool", "Profesor X","Magneto","Dobby","Gandalf","Frodo Bolsón", "Legolas","Gollum","Daenerys Targaryen", "Jon Snow","Tyrion Lannister","Cersei Lannister","Arya Stark","Walter White","Rick Sánchez","Morty Smith","Scooby-Doo", "Shaggy","Pedro Picapiedra","Tom","Jerry", "Popeye","Bugs Bunny","Pato Lucas","Elmer Gruñón","Optimus Prime",,"Bumblebee","Godzilla","King Kong","Jason Voorhees", "Freddy Krueger","Michael Myers","Chucky","Pennywise","Dora la Exploradora" ,"Peppa Pig","Hello Kitty","Barbie","Ken", "He-Man","Skeletor","Power Ranger Rojo", "Lara Croft","Joel Miller","Sephiroth","Pac-Man","Mega Man","Sub-Zero","Scorpion","Aang", "Zuko","Korra","Po","Tai Lung","Wall-E","EVA","Rayo McQueen","Mate","Remy","Gru","Minion","Hércules", "Peter Pan","Campanita","Capitán Garfio","Pinocho","Dumbo", "Bambi","Stitch","Mulán","Moana","Baymax","Ben 10","Finn el Humano","Jake el Perro", "Samurai Jack" ];
+ 
+
+    // Lista activa (esta es la que usa el juego)
+    let CHARACTERS = loadCharactersFromStorage() ?? [...DEFAULT_CHARACTERS];
+
+    const STORAGE_KEY = "impostor_characters_v1";
+
+    function saveCharactersToStorage(list){
+      try{
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+      }catch(e){
+        // si no hay localStorage disponible, no pasa nada
+      }
+    }
+    function loadCharactersFromStorage(){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if(!raw) return null;
+        const parsed = JSON.parse(raw);
+        if(Array.isArray(parsed) && parsed.length) return parsed;
+        return null;
+      }catch(e){
+        return null;
+      }
+    }
+    function clearCharactersFromStorage(){
+      try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
+    }
+
+    function normalizeCharacters(input){
+      // input puede ser:
+      // 1) Array de strings
+      // 2) Objeto { characters: [...] }
+      // (si en el futuro quieres, aquí puedes extender a "sets", etc.)
+      let arr = null;
+
+      if(Array.isArray(input)) arr = input;
+      else if(input && typeof input === "object" && Array.isArray(input.characters)) arr = input.characters;
+
+      if(!arr) throw new Error("Formato inválido: debe ser un arreglo o un objeto con { characters: [...] }.");
+
+      // Limpieza
+      const cleaned = arr
+        .map(x => (typeof x === "string" ? x.trim() : ""))
+        .filter(Boolean);
+
+      // Quita duplicados conservando orden
+      const seen = new Set();
+      const unique = [];
+      for(const name of cleaned){
+        const key = name.toLowerCase();
+        if(seen.has(key)) continue;
+        seen.add(key);
+        unique.push(name);
+      }
+
+      if(unique.length < 3){
+        throw new Error("La lista debe tener al menos 3 personajes.");
+      }
+
+      return unique;
+    }
+
+    // ============================================================
     // CONFIG IMÁGENES LOCALES
-    // ==========
+    // ============================================================
     const IMAGE_FOLDER = "../charactersImages/";
     const DEFAULT_EXT = ".jpg"; // cambia a .png si tus imágenes son PNG
 
     // Imagen del impostor (pon un archivo real en charactersImages/)
-    // Por ejemplo: charactersImages/impostor.jpg
     const IMPOSTOR_IMAGE = IMAGE_FOLDER + "impostor" + DEFAULT_EXT;
 
     function slugify(name){
@@ -354,9 +472,9 @@ const CHARACTERS = [ "Shrek","Fiona","Burro","Gato con Botas","Mickey Mouse", "M
       return IMAGE_FOLDER + slugify(characterName) + DEFAULT_EXT;
     }
 
-    // ==========
+    // ============================================================
     // ELEMENTOS UI
-    // ==========
+    // ============================================================
     const playersInput = document.getElementById("playersInput");
 
     const startBtn = document.getElementById("startBtn");
@@ -376,9 +494,30 @@ const CHARACTERS = [ "Shrek","Fiona","Burro","Gato con Botas","Mickey Mouse", "M
     const progressPill = document.getElementById("progressPill");
     const impostorCount = document.getElementById("impostorCount");
 
-    // ==========
+    // JSON loader UI
+    const jsonFile = document.getElementById("jsonFile");
+    const loadJsonBtn = document.getElementById("loadJsonBtn");
+    const useDefaultBtn = document.getElementById("useDefaultBtn");
+    const charactersPill = document.getElementById("charactersPill");
+    const jsonMsg = document.getElementById("jsonMsg");
+
+    function setJsonMsg(text){
+      if(!text){
+        jsonMsg.style.display = "none";
+        jsonMsg.textContent = "";
+        return;
+      }
+      jsonMsg.style.display = "block";
+      jsonMsg.textContent = text;
+    }
+
+    function updateCharactersPill(){
+      charactersPill.textContent = `Personajes: ${CHARACTERS.length} (${CHARACTERS === DEFAULT_CHARACTERS ? "default" : "activos"})`;
+    }
+
+    // ============================================================
     // ESTADO
-    // ==========
+    // ============================================================
     let game = null;
 
     function setPhase(text){
@@ -415,6 +554,12 @@ const CHARACTERS = [ "Shrek","Fiona","Burro","Gato con Botas","Mickey Mouse", "M
 
     function buildRoles(playerCount){
       const impostors = (playerCount > 6) ? 2 : 1;
+
+      if(!Array.isArray(CHARACTERS) || CHARACTERS.length < 3){
+        // fallback ultra seguro
+        CHARACTERS = [...DEFAULT_CHARACTERS];
+      }
+
       const character = pickRandom(CHARACTERS);
 
       const roles = Array(playerCount).fill("CREW");
@@ -487,6 +632,11 @@ const CHARACTERS = [ "Shrek","Fiona","Burro","Gato con Botas","Mickey Mouse", "M
       startBtn.disabled = true;
       playersInput.disabled = true;
 
+      // mientras hay partida, evita cambiar la lista para no romper consistencia
+      loadJsonBtn.disabled = true;
+      useDefaultBtn.disabled = true;
+      jsonFile.disabled = true;
+
       resetUIToReady();
     }
 
@@ -511,6 +661,10 @@ const CHARACTERS = [ "Shrek","Fiona","Burro","Gato con Botas","Mickey Mouse", "M
       resetBtn.disabled = true;
       startBtn.disabled = false;
       playersInput.disabled = false;
+
+      loadJsonBtn.disabled = false;
+      useDefaultBtn.disabled = false;
+      jsonFile.disabled = false;
     }
 
     function revealRole(){
@@ -584,20 +738,57 @@ const CHARACTERS = [ "Shrek","Fiona","Burro","Gato con Botas","Mickey Mouse", "M
       nextBtn.className = "nextBtn";
     }
 
-    // ==========
+    // ============================================================
+    // CARGA JSON
+    // ============================================================
+    async function loadJsonFromFile(){
+      setJsonMsg("");
+      const file = jsonFile.files && jsonFile.files[0];
+      if(!file){
+        setJsonMsg("Selecciona un .json primero.");
+        return;
+      }
+      try{
+        const text = await file.text();
+        const parsed = JSON.parse(text);
+        const list = normalizeCharacters(parsed);
+
+        CHARACTERS = list;
+        saveCharactersToStorage(list);
+
+        setJsonMsg(`✅ Cargado: ${list.length} personajes.\n(Se guardó en este navegador para la próxima vez)`);
+        updateCharactersPill();
+      }catch(err){
+        setJsonMsg("❌ No pude cargar ese JSON.\n" + (err?.message || String(err)));
+      }finally{
+        // limpia el input para poder cargar el mismo archivo otra vez si quieres
+        jsonFile.value = "";
+      }
+    }
+
+    function useDefaultCharacters(){
+      setJsonMsg("");
+      CHARACTERS = [...DEFAULT_CHARACTERS];
+      clearCharactersFromStorage();
+      setJsonMsg("✅ Volviste a la lista default (y se borró la lista guardada).");
+      updateCharactersPill();
+    }
+
+    // ============================================================
     // EVENTOS
-    // ==========
+    // ============================================================
     startBtn.addEventListener("click", startGame);
     resetBtn.addEventListener("click", resetGame);
 
     revealBtn.addEventListener("click", revealRole);
     nextBtn.addEventListener("click", hideAndPrepareNext);
 
+    loadJsonBtn.addEventListener("click", loadJsonFromFile);
+    useDefaultBtn.addEventListener("click", useDefaultCharacters);
+
     // Estado inicial
+    updateCharactersPill();
     resetGame();
   </script>
 </body>
 </html>
-
-
-
