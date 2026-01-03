@@ -61,6 +61,34 @@
       gap:14px;
     }
 
+    /* Layout en 2 paneles (izq: juego / der: setup) */
+    .layout{
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap:14px;
+      align-items:start;
+    }
+    .leftCol, .rightCol{
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+      min-width:0;
+    }
+    .rightCol .panel{ position:sticky; top:14px; }
+    @media (max-width: 980px){
+      .layout{ grid-template-columns: 1fr; }
+      .rightCol .panel{ position:static; }
+    }
+    .topGrid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:14px;
+      align-items:start;
+    }
+    @media (max-width: 860px){
+      .topGrid{ grid-template-columns:1fr; }
+    }
+
     .panel{
       background: rgba(0,0,0,.18);
       border:1px solid var(--line);
@@ -300,8 +328,55 @@
     </header>
 
     <div class="content">
-      <section class="panel">
-        <div class="row">
+      
+      
+      <section class="layout">
+        <div class="leftCol">
+          <section class="panel">
+<div class="pill" style="margin-bottom:10px;">Controles del juego</div>
+          <div class="btns">
+            <button id="revealBtn" class="revealBtn" disabled>Revelar</button>
+            <button id="nextBtn" class="nextBtn" disabled>Ocultar / Siguiente</button>
+          </div>
+          <p class="note" style="margin-top:10px;">
+            Estos botones son los que usas durante la ronda para pasar el teléfono.
+          </p>
+          </section>
+
+          <div class="card">
+          <div class="status">
+            <div class="who" id="whoText">Aún no inicia la partida.</div>
+            <h2 class="big" id="roleText">—</h2>
+            <p class="hint" id="hintText">Inicia la partida para asignar roles.</p>
+          </div>
+
+          <div class="imgWrap">
+            <div class="charImg" aria-label="Imagen del personaje">
+              <img id="characterImage" alt="Imagen del personaje" style="display:none;" src="" />
+              <div class="placeholder" id="imgPlaceholder">
+                Aquí aparecerá la imagen del personaje.
+              </div>
+            </div>
+          </div>
+        </div>
+
+          <div class="rightPanel">
+          <div class="panel">
+            <div class="pill" id="progressPill">Jugadores: 0/0</div>
+            <div class="list">
+              <div class="mini"><strong>Impostores:</strong> <span id="impostorCount">—</span></div>
+              <div class="mini"><strong>Modo:</strong> Oscuro</div>
+            </div>
+            <p class="note">
+              El impostor <strong>no ve el nombre</strong> del personaje. Ve “IMPOSTOR”.
+            </p>
+          </div>
+        </div>
+        </div>
+
+        <div class="rightCol">
+          <section class="panel">
+<div class="row">
           <label>
             Cantidad de jugadores
             <input id="playersInput" type="number" min="3" max="30" value="7" />
@@ -333,47 +408,10 @@
             JSON aceptado: <strong>un arreglo</strong> <em>[ "Gokú", "Mario", ... ]</em> o un objeto <em>{ "characters": [...] }</em>.
           </p>
         </div>
-      </section>
-
-      <section class="game">
-        <div class="card">
-          <!-- Botones SIEMPRE arriba de la imagen -->
-          <div class="topControls">
-            <button id="revealBtn" class="revealBtn" disabled>Revelar</button>
-
-            <!-- MISMO botón para Ocultar + Siguiente -->
-            <button id="nextBtn" class="nextBtn" disabled>Ocultar / Siguiente</button>
-          </div>
-
-          <div class="status">
-            <div class="who" id="whoText">Aún no inicia la partida.</div>
-            <h2 class="big" id="roleText">—</h2>
-            <p class="hint" id="hintText">Inicia la partida para asignar roles.</p>
-          </div>
-
-          <div class="imgWrap">
-            <div class="charImg" aria-label="Imagen del personaje">
-              <img id="characterImage" alt="Imagen del personaje" style="display:none;" src="" />
-              <div class="placeholder" id="imgPlaceholder">
-                Aquí aparecerá la imagen del personaje.
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="rightPanel">
-          <div class="panel">
-            <div class="pill" id="progressPill">Jugadores: 0/0</div>
-            <div class="list">
-              <div class="mini"><strong>Impostores:</strong> <span id="impostorCount">—</span></div>
-              <div class="mini"><strong>Modo:</strong> Oscuro</div>
-            </div>
-            <p class="note">
-              El impostor <strong>no ve el nombre</strong> del personaje. Ve “IMPOSTOR”.
-            </p>
-          </div>
+          </section>
         </div>
       </section>
+
     </div>
   </div>
 
@@ -385,7 +423,7 @@
     // Lista default (se usa si no cargas JSON)
     
 
-const DEFAULT_CHARACTERS = [ "Shrek","Fiona","Burro","Gato con Botas","Mickey Mouse", "Minnie Mouse","Pato Donald","Goofy","Simba","Scar", "Ariel","Elsa","Anna","Olaf","Aladdín", "Genio","Woody","Buzz Lightyear","Homero Simpson","Bart Simpson", "Marge Simpson","Lisa Simpson","Bob Esponja","Patricio Estrella","Calamardo", "Batman","Superman","Mujer Maravilla","Guasón","Spider-Man", "Iron Man","Capitán América","Thor","Hulk","Thanos", "Darth Vader","Luke Skywalker","Yoda","Princesa Leia","Han Solo", "Gokú","Vegeta","Naruto Uzumaki","Sasuke Uchiha","Monkey D. Luffy", "Pikachu","Ash Ketchum","Mario","Luigi","Bowser", "Link","Zelda","Sonic", "Harry Potter","Hermione Granger","Ron Weasley","Voldemort","Hagrid", "James Bond","Rocky Balboa","Terminator", "John Wick","Neo","Jack Sparrow", "Davy Jones","Viuda Negra","Doctor Strange","Wolverine","Deadpool", "Profesor X","Magneto","Dobby","Gandalf","Frodo Bolsón", "Legolas","Gollum","Daenerys Targaryen", "Jon Snow","Tyrion Lannister","Cersei Lannister","Arya Stark","Walter White","Rick Sánchez","Morty Smith","Scooby-Doo", "Shaggy","Pedro Picapiedra","Tom","Jerry", "Popeye","Bugs Bunny","Pato Lucas","Elmer Gruñón","Optimus Prime",,"Bumblebee","Godzilla","King Kong","Jason Voorhees", "Freddy Krueger","Michael Myers","Chucky","Pennywise","Dora la Exploradora" ,"Peppa Pig","Hello Kitty","Barbie","Ken", "He-Man","Skeletor","Power Ranger Rojo", "Lara Croft","Joel Miller","Sephiroth","Pac-Man","Mega Man","Sub-Zero","Scorpion","Aang", "Zuko","Korra","Po","Tai Lung","Wall-E","EVA","Rayo McQueen","Mate","Remy","Gru","Minion","Hércules", "Peter Pan","Campanita","Capitán Garfio","Pinocho","Dumbo", "Bambi","Stitch","Mulán","Moana","Baymax","Ben 10","Finn el Humano","Jake el Perro", "Samurai Jack" ];
+const DEFAULT_CHARACTERS = [ "Shrek","Fiona","Burro","Gato con Botas","Mickey Mouse", "Minnie Mouse","Pato Donald","Goofy","Simba","Scar", "Ariel","Elsa","Anna","Olaf","Aladdín", "Genio","Woody","Buzz Lightyear","Homero Simpson","Bart Simpson", "Marge Simpson","Lisa Simpson","Bob Esponja","Patricio Estrella","Calamardo", "Batman","Superman","Mujer Maravilla","Guasón","Spider-Man", "Iron Man","Capitán América","Thor","Hulk","Thanos", "Darth Vader","Luke Skywalker","Yoda","Princesa Leia","Han Solo", "Gokú","Vegeta","Naruto Uzumaki","Sasuke Uchiha","Monkey D. Luffy", "Pikachu","Ash Ketchum","Mario","Luigi","Bowser", "Link","Zelda","Sonic", "Harry Potter","Hermione Granger","Ron Weasley","Voldemort","Hagrid", "James Bond","Rocky Balboa","Terminator", "John Wick","Neo","Jack Sparrow", "Davy Jones","Viuda Negra","Doctor Strange","Wolverine","Deadpool", "Profesor X","Magneto","Dobby","Gandalf","Frodo Bolsón", "Legolas","Gollum","Daenerys Targaryen", "Jon Snow","Tyrion Lannister","Cersei Lannister","Arya Stark","Walter White","Rick Sánchez","Morty Smith","Scooby-Doo", "Shaggy","Pedro Picapiedra","Tom","Jerry", "Popeye","Bugs Bunny","Pato Lucas","Elmer Gruñón","Optimus Prime","Bumblebee","Godzilla","King Kong","Jason Voorhees", "Freddy Krueger","Michael Myers","Chucky","Pennywise","Dora la Exploradora" ,"Peppa Pig","Hello Kitty","Barbie","Ken", "He-Man","Skeletor","Power Ranger Rojo", "Lara Croft","Joel Miller","Sephiroth","Pac-Man","Mega Man","Sub-Zero","Scorpion","Aang", "Zuko","Korra","Po","Tai Lung","Wall-E","EVA","Rayo McQueen","Mate","Remy","Gru","Minion","Hércules", "Peter Pan","Campanita","Capitán Garfio","Pinocho","Dumbo", "Bambi","Stitch","Mulán","Moana","Baymax","Ben 10","Finn el Humano","Jake el Perro", "Samurai Jack" ];
  
 
     // Lista activa (esta es la que usa el juego)
@@ -561,15 +599,93 @@ const DEFAULT_CHARACTERS = [ "Shrek","Fiona","Burro","Gato con Botas","Mickey Mo
       }
 
       const character = pickRandom(CHARACTERS);
-
       const roles = Array(playerCount).fill("CREW");
 
-      const impostorIndexes = new Set();
-      while(impostorIndexes.size < impostors){
-        impostorIndexes.add(Math.floor(Math.random() * playerCount));
+      // ------------------------------------------------------------
+      // Probabilidades (tuneables):
+      // - Baja la probabilidad de que el impostor salga al inicio
+      //   (Jugador 1 y 2), pero NO lo hace imposible.
+      // - Si son 2 impostores, baja la probabilidad de que salgan
+      //   seguidos (adyacentes), pero puede pasar.
+      // ------------------------------------------------------------
+      const P_FIRST = 0.25;      // factor para Jugador 1 (0.18 = muy raro)
+      const P_SECOND = 1;     // factor para Jugador 2
+      const P_THIRD = 1;      // factor para Jugador 3
+      const TAIL_EXP = 1;     // favorece suave hacia el final (>=1)
+      const ADJACENT_FACTOR = 0.25; // factor si los 2 impostores son adyacentes
+
+      function weightForIndex(i){
+        let w = 1;
+
+        if(i === 0) w *= P_FIRST;
+        else if(i === 1) w *= P_SECOND;
+        else if(i === 2) w *= P_THIRD;
+
+        // sesgo suave hacia el final (para que los últimos tengan un pelín más)
+        w *= Math.pow(i + 1, TAIL_EXP);
+        return w;
       }
-      for(const idx of impostorIndexes){
+
+      function weightedPickIndex(n, banned = new Set()){
+        let total = 0;
+        const weights = new Array(n).fill(0);
+
+        for(let i=0;i<n;i++){
+          if(banned.has(i)) continue;
+          const w = weightForIndex(i);
+          weights[i] = w;
+          total += w;
+        }
+
+        let r = Math.random() * total;
+        for(let i=0;i<n;i++){
+          r -= weights[i];
+          if(r <= 0) return i;
+        }
+
+        // fallback
+        for(let i=n-1;i>=0;i--){
+          if(!banned.has(i)) return i;
+        }
+        return 0;
+      }
+
+      function weightedPickPair(n){
+        // Enumeramos pares (i<j) con pesos, penalizando adyacentes.
+        let total = 0;
+        const pairs = [];
+
+        for(let i=0;i<n;i++){
+          for(let j=i+1;j<n;j++){
+            const wi = weightForIndex(i);
+            const wj = weightForIndex(j);
+
+            const adjacentPenalty = (j === i + 1) ? ADJACENT_FACTOR : 1.0;
+
+            const w = wi * wj * adjacentPenalty;
+            pairs.push([i, j, w]);
+            total += w;
+          }
+        }
+
+        let r = Math.random() * total;
+        for(const [i, j, w] of pairs){
+          r -= w;
+          if(r <= 0) return [i, j];
+        }
+
+        // fallback
+        if(n >= 4) return [n-4, n-2];
+        return [n-2, n-1];
+      }
+
+      if(impostors === 1){
+        const idx = weightedPickIndex(playerCount);
         roles[idx] = "IMPOSTOR";
+      }else{
+        const [a, b] = weightedPickPair(playerCount);
+        roles[a] = "IMPOSTOR";
+        roles[b] = "IMPOSTOR";
       }
 
       return { character, roles, impostors };
