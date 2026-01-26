@@ -1,0 +1,950 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Ahorcado (Turnos + 3 Pistas + Puntos)</title>
+  <style>
+    :root{
+      --bg:#0b1220;
+      --panel:#121b2f;
+      --text:#e8eefc;
+      --muted:#9fb0d0;
+      --ok:#38d48a;
+      --bad:#ff5c6c;
+      --accent:#6aa9ff;
+      --border:rgba(255,255,255,.10);
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius:18px;
+      --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:var(--font);
+      color:var(--text);
+      background: radial-gradient(1200px 800px at 20% 10%, rgba(106,169,255,.18), transparent 55%),
+                  radial-gradient(1000px 700px at 90% 20%, rgba(56,212,138,.12), transparent 55%),
+                  radial-gradient(900px 700px at 50% 90%, rgba(255,92,108,.10), transparent 60%),
+                  var(--bg);
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:18px;
+    }
+    .app{
+      width:min(1200px, 100%);
+      display:grid;
+      grid-template-columns: 440px 1fr;
+      gap:16px;
+    }
+    @media (max-width: 980px){
+      .app{grid-template-columns: 1fr;}
+    }
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:16px;
+      overflow:hidden;
+    }
+    h1{
+      margin:0 0 8px 0;
+      font-size:20px;
+      letter-spacing:.3px;
+    }
+    .sub{
+      margin:0 0 12px 0;
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.35;
+    }
+    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+    .row + .row{margin-top:10px}
+    button, input[type="text"], input[type="number"]{
+      border-radius:14px;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.05);
+      color:var(--text);
+      padding:10px 12px;
+      outline:none;
+      font-size:14px;
+    }
+    button{
+      cursor:pointer;
+      transition: transform .06s ease, background .2s ease, border-color .2s ease, opacity .2s ease;
+      user-select:none;
+    }
+    button:hover{background: rgba(255,255,255,.08)}
+    button:active{transform: translateY(1px) scale(.99)}
+    button.primary{
+      background: rgba(106,169,255,.18);
+      border-color: rgba(106,169,255,.35);
+    }
+    button.primary:hover{background: rgba(106,169,255,.24)}
+    button.danger{
+      background: rgba(255,92,108,.16);
+      border-color: rgba(255,92,108,.35);
+    }
+    button.ok{
+      background: rgba(56,212,138,.16);
+      border-color: rgba(56,212,138,.35);
+    }
+    button.ghost{
+      background: rgba(255,255,255,.04);
+    }
+    button:disabled{opacity:.45; cursor:not-allowed}
+    .spacer{flex:1}
+    .pill{
+      font-size:12px;
+      color:var(--muted);
+      border:1px solid var(--border);
+      padding:6px 10px;
+      border-radius:999px;
+      background: rgba(0,0,0,.15);
+    }
+    .grid2{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+    }
+    @media (max-width:520px){ .grid2{grid-template-columns:1fr;} }
+
+    /* Panel izquierdo (canvas + estado) */
+    .stage{
+      display:grid;
+      grid-template-rows:auto auto auto 1fr auto auto;
+      gap:12px;
+      min-height: 560px;
+    }
+    canvas{
+      width:100%;
+      height:auto;
+      background: rgba(0,0,0,.10);
+      border:1px solid var(--border);
+      border-radius:16px;
+    }
+    .word{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:center;
+      align-items:center;
+      padding:10px 6px;
+      border:1px dashed rgba(255,255,255,.16);
+      border-radius:16px;
+      background: rgba(0,0,0,.10);
+    }
+    .slot{
+      width:34px;
+      height:44px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:22px;
+      border-bottom:2px solid rgba(255,255,255,.35);
+      color:var(--text);
+      position:relative;
+    }
+    .slot.revealed{border-bottom-color: rgba(56,212,138,.55);}
+    .hint{
+      text-align:center;
+      color:var(--muted);
+      font-size:13px;
+    }
+    .status{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:space-between;
+      align-items:center;
+      border-top:1px solid var(--border);
+      padding-top:12px;
+    }
+    .badges{display:flex; gap:8px; flex-wrap:wrap;}
+
+    /* Panel derecho (controles) */
+    .controls{
+      display:grid;
+      grid-template-rows: auto auto auto auto 1fr;
+      gap:12px;
+      min-height: 560px;
+    }
+    .kbd{
+      display:grid;
+      grid-template-columns: repeat(10, 1fr);
+      gap:8px;
+    }
+    @media (max-width: 520px){
+      .kbd{grid-template-columns: repeat(7, 1fr);}
+    }
+    .key{
+      padding:10px 0;
+      text-align:center;
+      font-weight:700;
+      letter-spacing:.6px;
+      border-radius:14px;
+      background: rgba(255,255,255,.05);
+      border:1px solid var(--border);
+    }
+    .key.used{opacity:.35; cursor:not-allowed}
+    .key.good{
+      background: rgba(56,212,138,.14);
+      border-color: rgba(56,212,138,.30);
+    }
+    .key.bad{
+      background: rgba(255,92,108,.14);
+      border-color: rgba(255,92,108,.30);
+    }
+
+    .log{
+      padding:12px;
+      border-radius:16px;
+      border:1px solid var(--border);
+      background: rgba(0,0,0,.12);
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.35;
+      overflow:auto;
+      max-height: 180px;
+    }
+    .log b{color:var(--text)}
+
+    /* Animaciones de feedback */
+    .flash-ok{ animation: okPulse .35s ease; box-shadow: 0 0 0 rgba(56,212,138,0); }
+    @keyframes okPulse{
+      0%{transform: scale(1); box-shadow: 0 0 0 0 rgba(56,212,138,.0)}
+      50%{transform: scale(1.015); box-shadow: 0 0 0 10px rgba(56,212,138,.10)}
+      100%{transform: scale(1); box-shadow: 0 0 0 0 rgba(56,212,138,.0)}
+    }
+    .flash-bad{ animation: badShake .38s ease; box-shadow: 0 0 0 rgba(255,92,108,0); }
+    @keyframes badShake{
+      0%{transform: translateX(0); box-shadow: 0 0 0 0 rgba(255,92,108,.0)}
+      15%{transform: translateX(-6px); box-shadow: 0 0 0 10px rgba(255,92,108,.08)}
+      35%{transform: translateX(6px)}
+      55%{transform: translateX(-4px)}
+      75%{transform: translateX(4px)}
+      100%{transform: translateX(0); box-shadow: 0 0 0 0 rgba(255,92,108,.0)}
+    }
+
+    .toast{
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid var(--border);
+      background: rgba(0,0,0,.12);
+      color:var(--muted);
+      font-size:13px;
+    }
+    .toast.ok{border-color: rgba(56,212,138,.30); color: rgba(56,212,138,.95)}
+    .toast.bad{border-color: rgba(255,92,108,.35); color: rgba(255,92,108,.95)}
+    .toast.win{border-color: rgba(106,169,255,.35); color: rgba(106,169,255,.95)}
+
+    .small{font-size:12px; color:var(--muted);}
+
+    .scoreboard{
+      border:1px solid var(--border);
+      border-radius:16px;
+      background: rgba(0,0,0,.10);
+      overflow:hidden;
+    }
+    .scoreboard .head{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:10px 12px;
+      border-bottom:1px solid var(--border);
+      color:var(--muted);
+      font-size:12px;
+    }
+    table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:13px;
+    }
+    th, td{
+      padding:10px 12px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      text-align:left;
+    }
+    tr:last-child td{border-bottom:none}
+    .tagTurno{
+      font-weight:700;
+      color: rgba(106,169,255,.95);
+    }
+    .hintPanel{
+      border:1px solid var(--border);
+      border-radius:16px;
+      background: rgba(0,0,0,.10);
+      padding:10px 12px;
+    }
+    .hintLine{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      margin:6px 0;
+      color:var(--muted);
+      font-size:13px;
+    }
+    .hintLine b{color:var(--text)}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- IZQUIERDA -->
+    <div class="card stage" id="stageCard">
+      <div>
+        <h1>Ahorcado</h1>
+        <p class="sub">
+          Acierta letras. Puedes usar hasta 3 pistas: entre más pistas uses, menos puntos ganas.
+        </p>
+      </div>
+
+      <canvas id="hangCanvas" width="900" height="650" aria-label="Ahorcado"></canvas>
+
+      <div>
+        <div class="word" id="wordSlots" aria-label="Palabra"></div>
+        <div class="hint" id="baseHint"></div>
+      </div>
+
+      <div class="hintPanel">
+        <div class="row" style="justify-content:space-between; align-items:center;">
+          <span class="pill">Pistas usadas: <b id="hintsUsed">0</b>/3</span>
+          <span class="pill">Puntos si ganas ahora: <b id="pointsNow">5</b></span>
+          <button class="ghost" id="hintBtn">Usar pista</button>
+        </div>
+        <div class="hintLine"><span>Pista 1:</span><b id="hint1">—</b></div>
+        <div class="hintLine"><span>Pista 2:</span><b id="hint2">—</b></div>
+        <div class="hintLine"><span>Pista 3:</span><b id="hint3">—</b></div>
+      </div>
+
+      <div class="status">
+        <div class="badges">
+          <span class="pill">Errores: <strong id="errors">0</strong>/<span id="maxErrors">6</span></span>
+          <span class="pill">Intentos: <strong id="tries">0</strong></span>
+          <span class="pill">Usadas: <strong id="usedCount">0</strong></span>
+        </div>
+        <div class="row">
+          <button class="primary" id="newRoundBtn">Nueva ronda</button>
+          <button class="danger" id="revealBtn" title="Revela la palabra y termina la ronda">Revelar</button>
+        </div>
+      </div>
+
+      <div class="toast" id="toast">Listo.</div>
+    </div>
+
+    <!-- DERECHA -->
+    <div class="card controls" id="controlCard">
+      <!-- Setup de jugadores -->
+      <div class="grid2">
+        <div>
+          <div class="small">Jugadores</div>
+          <div class="row" style="margin-top:6px;">
+            <input id="playerCount" type="number" min="1" max="10" value="2" style="width:110px;" />
+            <button class="primary" id="setPlayersBtn">Aplicar</button>
+          </div>
+          <div class="small" style="margin-top:6px;">Tip: puedes poner nombres después.</div>
+        </div>
+        <div>
+          <div class="small">Turno</div>
+          <div class="row" style="margin-top:6px;">
+            <span class="pill">Turno de: <b id="turnName">Jugador 1</b></span>
+            <button id="nextTurnBtn">Siguiente turno</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scoreboard -->
+      <div class="scoreboard">
+        <div class="head">
+          <span>Marcador</span>
+          <span class="small">Ganas puntos solo si completas la palabra</span>
+        </div>
+        <div style="padding:0 0 4px 0;">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:60%">Jugador</th>
+                <th>Puntos</th>
+              </tr>
+            </thead>
+            <tbody id="scoreRows"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Entrada -->
+      <div class="row">
+        <input id="letterInput" type="text" autocomplete="off" placeholder="Letra (A-Z, Ñ) y Enter…" maxlength="2" />
+        <button class="ok" id="guessBtn">Probar</button>
+        <div class="spacer"></div>
+        <span class="pill" id="categoryPill">Categoría: —</span>
+      </div>
+
+      <!-- JSON -->
+      <div class="row">
+        <label class="small">Cargar JSON:</label>
+        <input type="file" id="jsonFile" accept="application/json" />
+        <button id="useDefaultBtn">Default</button>
+      </div>
+
+      <!-- Teclado + log -->
+      <div>
+        <div class="row" style="justify-content:space-between; align-items:flex-end;">
+          <div>
+            <div class="small">Teclado</div>
+            <div class="small">Tip: también puedes presionar letras en tu teclado físico.</div>
+          </div>
+          <div class="small">Acierto = verde · Error = rojo</div>
+        </div>
+        <div class="kbd" id="kbd"></div>
+      </div>
+
+      <div>
+        <div class="small" style="margin-bottom:6px;">Registro</div>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+
+  // --- Elementos ---
+  const stageCard = $("#stageCard");
+  const controlCard = $("#controlCard");
+  const canvas = $("#hangCanvas");
+  const ctx = canvas.getContext("2d");
+
+  const wordSlots = $("#wordSlots");
+  const baseHintEl = $("#baseHint");
+
+  const errorsEl = $("#errors");
+  const maxErrorsEl = $("#maxErrors");
+  const triesEl = $("#tries");
+  const usedCountEl = $("#usedCount");
+  const toast = $("#toast");
+
+  const categoryPill = $("#categoryPill");
+  const input = $("#letterInput");
+  const guessBtn = $("#guessBtn");
+  const newRoundBtn = $("#newRoundBtn");
+  const revealBtn = $("#revealBtn");
+
+  const hintBtn = $("#hintBtn");
+  const hintsUsedEl = $("#hintsUsed");
+  const pointsNowEl = $("#pointsNow");
+  const hint1El = $("#hint1");
+  const hint2El = $("#hint2");
+  const hint3El = $("#hint3");
+
+  const jsonFile = $("#jsonFile");
+  const useDefaultBtn = $("#useDefaultBtn");
+
+  const kbd = $("#kbd");
+  const logEl = $("#log");
+
+  // Jugadores
+  const playerCountInput = $("#playerCount");
+  const setPlayersBtn = $("#setPlayersBtn");
+  const scoreRows = $("#scoreRows");
+  const turnNameEl = $("#turnName");
+  const nextTurnBtn = $("#nextTurnBtn");
+
+  // --- Config ---
+  const MAX_ERRORS = 6;
+  const LETTERS = "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ".split("");
+
+  // --- Banco default (con 3 pistas ya preparadas) ---
+  // Si tu JSON trae solo "hint", aquí se generan pistas extra automáticamente.
+  let wordBank = [
+    { word: "JAVASCRIPT", category:"Tecnología", hints:["Lenguaje para la web", "Se ejecuta en el navegador", "No es Java"] },
+    { word: "TEATRO", category:"Cultura", hints:["Arte escénico", "Hay actores en un escenario", "Puede tener improvisación"] },
+    { word: "AHORCADO", category:"Juegos", hints:["Juego de letras", "Tienes errores limitados", "Dibujas un muñequito"] },
+    { word: "NOGALES", category:"Lugares", hints:["Ciudad", "Está en Sonora", "También hay Nogales en Arizona"] },
+    { word: "CHROMA", category:"Video", hints:["Fondo verde", "Se usa en edición", "Permite recortar el fondo"] },
+    { word: "PROGRAMACION", category:"Tech", hints:["Escribir código", "Resolver problemas con lógica", "Se puede compilar o interpretar"] },
+  ];
+
+  // --- Estado juego ---
+  let current = null;       // {word, category, hints[]}
+  let normalizedWord = "";  // solo letras A-ZÑ
+  let revealed = [];
+  let used = new Set();
+  let errors = 0;
+  let tries = 0;
+  let gameOver = false;
+
+  // Pistas usadas
+  let hintsUsed = 0; // 0..3
+
+  // --- Estado jugadores ---
+  let players = [
+    { name: "Jugador 1", score: 0 },
+    { name: "Jugador 2", score: 0 },
+  ];
+  let turnIndex = 0;
+
+  // --- Helpers ---
+  const normalizeChar = (ch) => {
+    if (!ch) return "";
+    const up = ch.toUpperCase();
+    const map = {
+      "Á":"A","À":"A","Ä":"A","Â":"A",
+      "É":"E","È":"E","Ë":"E","Ê":"E",
+      "Í":"I","Ì":"I","Ï":"I","Î":"I",
+      "Ó":"O","Ò":"O","Ö":"O","Ô":"O",
+      "Ú":"U","Ù":"U","Ü":"U","Û":"U",
+      "Ñ":"Ñ"
+    };
+    return map[up] || up;
+  };
+  const normalizeWord = (w) => {
+    const chars = [...String(w).toUpperCase()].map(normalizeChar);
+    return chars.filter(c => (c >= "A" && c <= "Z") || c === "Ñ").join("");
+  };
+  const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+  const log = (html) => {
+    const p = document.createElement("div");
+    p.innerHTML = html;
+    logEl.prepend(p);
+  };
+  const setToast = (msg, kind="") => {
+    toast.className = "toast" + (kind ? " " + kind : "");
+    toast.textContent = msg;
+  };
+  const bump = (el, cls) => {
+    el.classList.remove(cls);
+    void el.offsetWidth;
+    el.classList.add(cls);
+  };
+
+  // Puntos según pistas usadas
+  const pointsForHints = (usedCount) => {
+    // 0->5, 1->4, 2->3, 3->2
+    return Math.max(2, 5 - usedCount);
+  };
+
+  const ensureThreeHints = (obj) => {
+    // Si viene hints[], úsalo. Si viene hint/pista, conviértelo.
+    let hints = [];
+    if (Array.isArray(obj.hints)) hints = obj.hints.map(String);
+    else if (obj.hint || obj.pista) hints = [String(obj.hint ?? obj.pista)];
+
+    // Generar pistas faltantes simples
+    const w = String(obj.word ?? obj.palabra ?? "").trim();
+    const norm = normalizeWord(w);
+    const len = norm.length;
+
+    const gen = [];
+    gen.push(hints[0] || "Sin pista personalizada");
+    gen.push(hints[1] || `Tiene ${len} letras`);
+    // pista 3: muestra primera y última letra si existen
+    const first = norm[0] || "—";
+    const last = norm[len-1] || "—";
+    gen.push(hints[2] || `Empieza con "${first}" y termina con "${last}"`);
+
+    return gen.slice(0,3);
+  };
+
+  // --- Dibujo ---
+  const clearCanvas = () => ctx.clearRect(0,0,canvas.width, canvas.height);
+
+  const drawBase = () => {
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = 14;
+    ctx.strokeStyle = "rgba(255,255,255,.70)";
+    ctx.beginPath();
+    ctx.moveTo(130, 580);
+    ctx.lineTo(520, 580);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(210, 580);
+    ctx.lineTo(210, 120);
+    ctx.lineTo(520, 120);
+    ctx.lineTo(520, 180);
+    ctx.stroke();
+
+    ctx.lineWidth = 10;
+    ctx.strokeStyle = "rgba(255,255,255,.55)";
+    ctx.beginPath();
+    ctx.moveTo(520, 180);
+    ctx.lineTo(520, 220);
+    ctx.stroke();
+  };
+
+  const drawPart = (n) => {
+    ctx.lineWidth = 12;
+    ctx.strokeStyle = "rgba(255,255,255,.85)";
+    ctx.fillStyle = "rgba(255,255,255,.10)";
+    const x = 520, y = 280;
+
+    if (n >= 1) { ctx.beginPath(); ctx.arc(x, y, 55, 0, Math.PI*2); ctx.fill(); ctx.stroke(); }
+    if (n >= 2) { ctx.beginPath(); ctx.moveTo(x, y+55); ctx.lineTo(x, y+210); ctx.stroke(); }
+    if (n >= 3) { ctx.beginPath(); ctx.moveTo(x, y+95); ctx.lineTo(x-85, y+160); ctx.stroke(); }
+    if (n >= 4) { ctx.beginPath(); ctx.moveTo(x, y+95); ctx.lineTo(x+85, y+160); ctx.stroke(); }
+    if (n >= 5) { ctx.beginPath(); ctx.moveTo(x, y+210); ctx.lineTo(x-75, y+310); ctx.stroke(); }
+    if (n >= 6) { ctx.beginPath(); ctx.moveTo(x, y+210); ctx.lineTo(x+75, y+310); ctx.stroke(); }
+  };
+
+  const renderCanvas = () => {
+    clearCanvas();
+    drawBase();
+    for (let i=1; i<=errors; i++) drawPart(i);
+
+    if (gameOver) {
+      ctx.font = "bold 44px " + getComputedStyle(document.body).fontFamily;
+      ctx.textAlign = "center";
+      ctx.fillStyle = errors >= MAX_ERRORS ? "rgba(255,92,108,.92)" : "rgba(56,212,138,.92)";
+      ctx.fillText(errors >= MAX_ERRORS ? "PERDISTE" : "GANASTE", canvas.width/2, 90);
+    }
+  };
+
+  // --- Render palabra ---
+  const renderWordSlots = () => {
+    wordSlots.innerHTML = "";
+    const original = current.word.toUpperCase();
+    const origChars = [...original];
+    let letterIndex = 0;
+
+    origChars.forEach(ch => {
+      const norm = normalizeChar(ch);
+      const isLetter = ((norm >= "A" && norm <= "Z") || norm === "Ñ");
+
+      const slot = document.createElement("div");
+      slot.className = "slot";
+
+      if (!isLetter) {
+        slot.textContent = " ";
+        slot.style.borderBottomColor = "transparent";
+      } else {
+        const isRevealed = revealed[letterIndex] === true;
+        slot.textContent = isRevealed ? ch.toUpperCase() : "";
+        if (isRevealed) slot.classList.add("revealed");
+        letterIndex++;
+      }
+      wordSlots.appendChild(slot);
+    });
+
+    baseHintEl.textContent = current.hints?.[0] ? `Pista base: ${current.hints[0]}` : "";
+    categoryPill.textContent = `Categoría: ${current.category || "—"}`;
+
+    errorsEl.textContent = String(errors);
+    maxErrorsEl.textContent = String(MAX_ERRORS);
+    triesEl.textContent = String(tries);
+    usedCountEl.textContent = String(used.size);
+
+    // Pistas
+    hintsUsedEl.textContent = String(hintsUsed);
+    pointsNowEl.textContent = String(pointsForHints(hintsUsed));
+
+    hint1El.textContent = hintsUsed >= 1 ? (current.hints?.[0] ?? "—") : "—";
+    hint2El.textContent = hintsUsed >= 2 ? (current.hints?.[1] ?? "—") : "—";
+    hint3El.textContent = hintsUsed >= 3 ? (current.hints?.[2] ?? "—") : "—";
+
+    hintBtn.disabled = gameOver || hintsUsed >= 3;
+  };
+
+  // --- Render teclado ---
+  const renderKeyboard = () => {
+    kbd.innerHTML = "";
+    LETTERS.forEach(L => {
+      const b = document.createElement("button");
+      b.className = "key";
+      b.textContent = L;
+
+      if (used.has(L)) {
+        b.classList.add("used");
+        if (normalizedWord.includes(L)) b.classList.add("good");
+        else b.classList.add("bad");
+        b.disabled = true;
+      }
+      b.addEventListener("click", () => makeGuess(L));
+      kbd.appendChild(b);
+    });
+  };
+
+  // --- Jugadores ---
+  const renderPlayers = () => {
+    scoreRows.innerHTML = "";
+    players.forEach((p, idx) => {
+      const tr = document.createElement("tr");
+      const tdName = document.createElement("td");
+      const tdScore = document.createElement("td");
+
+      // Nombre editable
+      const nameInput = document.createElement("input");
+      nameInput.type = "text";
+      nameInput.value = p.name;
+      nameInput.style.width = "100%";
+      nameInput.addEventListener("change", () => {
+        players[idx].name = nameInput.value.trim() || `Jugador ${idx+1}`;
+        renderTurnLabel();
+        renderPlayers();
+      });
+      tdName.appendChild(nameInput);
+
+      tdScore.textContent = String(p.score);
+      tr.appendChild(tdName);
+      tr.appendChild(tdScore);
+      scoreRows.appendChild(tr);
+    });
+    renderTurnLabel();
+  };
+
+  const renderTurnLabel = () => {
+    const name = players[turnIndex]?.name ?? `Jugador ${turnIndex+1}`;
+    turnNameEl.textContent = name;
+  };
+
+  const nextTurn = () => {
+    turnIndex = (turnIndex + 1) % players.length;
+    renderTurnLabel();
+    setToast(`Turno de ${players[turnIndex].name}.`, "win");
+    bump(controlCard, "flash-ok");
+  };
+
+  // --- Juego ---
+  const startNewRound = () => {
+    current = pickRandom(wordBank);
+    current.hints = ensureThreeHints(current);
+
+    normalizedWord = normalizeWord(current.word);
+    revealed = Array.from({length: normalizedWord.length}, () => false);
+    used = new Set();
+    errors = 0;
+    tries = 0;
+    gameOver = false;
+
+    // reset pistas por ronda
+    hintsUsed = 0;
+
+    logEl.innerHTML = "";
+    setToast(`Nueva ronda para ${players[turnIndex].name}.`, "win");
+
+    renderWordSlots();
+    renderKeyboard();
+    renderCanvas();
+
+    input.value = "";
+    input.focus();
+
+    log(`<b>🎲</b> Nueva palabra (${normalizedWord.length} letras). Turno: <b>${players[turnIndex].name}</b>`);
+  };
+
+  const awardPointsIfWin = () => {
+    const pts = pointsForHints(hintsUsed);
+    players[turnIndex].score += pts;
+    renderPlayers();
+    log(`<b>⭐</b> ${players[turnIndex].name} gana <b>${pts}</b> puntos (pistas usadas: ${hintsUsed}). Total: <b>${players[turnIndex].score}</b>`);
+  };
+
+  const endGameWin = () => {
+    gameOver = true;
+    renderWordSlots();
+    renderKeyboard();
+    renderCanvas();
+    awardPointsIfWin();
+    setToast(`¡Ganaste! +${pointsForHints(hintsUsed)} pts`, "ok");
+    log(`<b>🏆</b> ¡Ganó ${players[turnIndex].name}! Palabra: <b>${current.word}</b>`);
+    // pasa turno automáticamente al terminar ronda
+    nextTurn();
+  };
+
+  const endGameLose = () => {
+    gameOver = true;
+    revealed = revealed.map(() => true);
+    renderWordSlots();
+    renderKeyboard();
+    renderCanvas();
+    setToast(`Perdiste. +0 pts · Era: ${current.word}`, "bad");
+    log(`<b>💀</b> Perdió ${players[turnIndex].name}. Era: <b>${current.word}</b> (0 pts)`);
+    nextTurn();
+  };
+
+  const revealAll = () => {
+    if (!current) return;
+    gameOver = true;
+    revealed = revealed.map(() => true);
+    renderWordSlots();
+    renderKeyboard();
+    renderCanvas();
+    setToast(`Revelaste. +0 pts · Era: ${current.word}`, "bad");
+    log(`<b>👁️</b> ${players[turnIndex].name} reveló la palabra: <b>${current.word}</b> (0 pts)`);
+    nextTurn();
+  };
+
+  const makeGuess = (raw) => {
+    if (!current || gameOver) return;
+
+    const guess = normalizeChar(String(raw).trim());
+    const isValid = ((guess >= "A" && guess <= "Z") || guess === "Ñ");
+    if (!isValid || guess.length !== 1) {
+      setToast("Ingresa una sola letra (A-Z o Ñ).", "bad");
+      bump(controlCard, "flash-bad");
+      return;
+    }
+    if (used.has(guess)) {
+      setToast(`Ya usaste "${guess}".`, "bad");
+      bump(controlCard, "flash-bad");
+      return;
+    }
+
+    used.add(guess);
+    tries++;
+
+    const hit = normalizedWord.includes(guess);
+    if (hit) {
+      for (let i=0; i<normalizedWord.length; i++){
+        if (normalizedWord[i] === guess) revealed[i] = true;
+      }
+      setToast(`¡Bien! "${guess}" está en la palabra.`, "ok");
+      bump(stageCard, "flash-ok");
+      log(`<b>✅</b> ${players[turnIndex].name} acierta: <b>${guess}</b>`);
+    } else {
+      errors++;
+      setToast(`Nope. "${guess}" no está.`, "bad");
+      bump(stageCard, "flash-bad");
+      log(`<b>❌</b> ${players[turnIndex].name} falla: <b>${guess}</b> (Errores ${errors}/${MAX_ERRORS})`);
+    }
+
+    renderWordSlots();
+    renderKeyboard();
+    renderCanvas();
+
+    const allRevealed = revealed.every(Boolean);
+    if (allRevealed) endGameWin();
+    else if (errors >= MAX_ERRORS) endGameLose();
+
+    input.value = "";
+    input.focus();
+  };
+
+  // --- Pistas ---
+  const useHint = () => {
+    if (gameOver) return;
+    if (hintsUsed >= 3) return;
+
+    hintsUsed++;
+    setToast(`Usaste pista ${hintsUsed}. Puntos posibles ahora: ${pointsForHints(hintsUsed)}.`, "win");
+    bump(stageCard, "flash-ok");
+    log(`<b>💡</b> ${players[turnIndex].name} usa pista ${hintsUsed} (-1 punto potencial).`);
+    renderWordSlots();
+  };
+
+  // --- JSON ---
+  const applyLoadedBank = (data) => {
+    const arr = Array.isArray(data) ? data : (data && Array.isArray(data.words) ? data.words : null);
+    if (!arr || arr.length === 0) {
+      setToast("JSON inválido: no encontré un arreglo de palabras.", "bad");
+      bump(controlCard, "flash-bad");
+      return;
+    }
+    const cleaned = arr
+      .map(x => ({
+        word: String(x.word ?? x.palabra ?? "").trim(),
+        category: String(x.category ?? x.categoria ?? "").trim(),
+        // Acepta: hints:[...], o hint/pista
+        hints: Array.isArray(x.hints) ? x.hints : (x.hint ?? x.pista ?? "")
+      }))
+      .filter(x => x.word.length > 0 && normalizeWord(x.word).length > 0)
+      .map(x => ({ ...x, hints: ensureThreeHints(x) }));
+
+    if (cleaned.length === 0) {
+      setToast("JSON válido pero sin palabras utilizables (solo letras A-Z/Ñ).", "bad");
+      bump(controlCard, "flash-bad");
+      return;
+    }
+    wordBank = cleaned;
+    setToast(`Cargadas ${cleaned.length} palabras desde JSON.`, "ok");
+    bump(controlCard, "flash-ok");
+    log(`<b>📦</b> Cargadas <b>${cleaned.length}</b> palabras desde JSON.`);
+    startNewRound();
+  };
+
+  jsonFile.addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const txt = await file.text();
+      const data = JSON.parse(txt);
+      applyLoadedBank(data);
+    } catch (err) {
+      setToast("No pude leer ese JSON. Revisa el formato.", "bad");
+      bump(controlCard, "flash-bad");
+      console.error(err);
+    } finally {
+      jsonFile.value = "";
+    }
+  });
+
+  useDefaultBtn.addEventListener("click", () => {
+    wordBank = [
+      { word: "JAVASCRIPT", category:"Tecnología", hints:["Lenguaje para la web", "Se ejecuta en el navegador", "No es Java"] },
+      { word: "TEATRO", category:"Cultura", hints:["Arte escénico", "Hay actores en un escenario", "Puede tener improvisación"] },
+      { word: "AHORCADO", category:"Juegos", hints:["Juego de letras", "Tienes errores limitados", "Dibujas un muñequito"] },
+      { word: "NOGALES", category:"Lugares", hints:["Ciudad", "Está en Sonora", "También hay Nogales en Arizona"] },
+      { word: "CHROMA", category:"Video", hints:["Fondo verde", "Se usa en edición", "Permite recortar el fondo"] },
+      { word: "PROGRAMACION", category:"Tech", hints:["Escribir código", "Resolver problemas con lógica", "Se puede compilar o interpretar"] },
+    ];
+    setToast("Lista default restaurada.", "ok");
+    bump(controlCard, "flash-ok");
+    log(`<b>🔁</b> Lista default restaurada.`);
+    startNewRound();
+  });
+
+  // --- Jugadores: aplicar cantidad ---
+  const setPlayers = () => {
+    const n = Math.max(1, Math.min(10, Number(playerCountInput.value || 1)));
+    // Ajusta lista conservando puntajes existentes donde se pueda
+    const newPlayers = [];
+    for (let i=0; i<n; i++){
+      newPlayers.push(players[i] ? players[i] : { name: `Jugador ${i+1}`, score: 0 });
+      if (!newPlayers[i].name) newPlayers[i].name = `Jugador ${i+1}`;
+    }
+    players = newPlayers;
+    if (turnIndex >= players.length) turnIndex = 0;
+    renderPlayers();
+    setToast(`Configurados ${players.length} jugadores.`, "win");
+    bump(controlCard, "flash-ok");
+    log(`<b>👥</b> Jugadores configurados: <b>${players.length}</b>.`);
+  };
+
+  // --- Eventos ---
+  $("#guessBtn").addEventListener("click", () => makeGuess(input.value));
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); makeGuess(input.value); }
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (gameOver) return;
+    const tag = document.activeElement?.tagName?.toLowerCase();
+    const isTyping = (tag === "input" || tag === "textarea") && document.activeElement !== input;
+    if (isTyping) return;
+    if (/^[a-zA-ZñÑ]$/.test(e.key)) makeGuess(e.key);
+  });
+
+  newRoundBtn.addEventListener("click", startNewRound);
+  revealBtn.addEventListener("click", revealAll);
+  hintBtn.addEventListener("click", useHint);
+
+  setPlayersBtn.addEventListener("click", setPlayers);
+  nextTurnBtn.addEventListener("click", () => {
+    nextTurn();
+    // opcional: empezar una ronda nueva automáticamente al cambiar turno
+    // startNewRound();
+  });
+
+  // --- Inicio ---
+  renderPlayers();
+  maxErrorsEl.textContent = String(MAX_ERRORS);
+  startNewRound();
+})();
+</script>
+</body>
+</html>
