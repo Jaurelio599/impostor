@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firmar PDF Multipage</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+    </script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+
+    <style>
+        body { font-family: sans-serif; background: #f4f4f9; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        
+        .controls { 
+            background: white; padding: 15px; border-radius: 8px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; 
+            text-align: center; width: 100%; max-width: 800px;
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;
+        }
+        
+        .nav-controls { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+        
+        button { cursor: pointer; padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 5px; font-size: 14px; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        button.secondary { background: #6c757d; }
+        
+        #page-info { font-weight: bold; color: #333; min-width: 100px; text-align: center; }
+
+        /* Contenedor del PDF */
+        #pdf-wrapper { position: relative; border: 1px solid #ddd; box-shadow: 0 4px 8px rgba(0,0,0,0.1); display: none; margin-bottom: 50px;}
+        
+        /* Caja de selección */
+        #selection-box {
+            position: absolute; border: 2px dashed #ff0000; background-color: rgba(255, 0, 0, 0.1);
+            display: none; pointer-events: none;
+        }
+
+        /* Modal */
+        #modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 999;
+        }
+        .modal-box { background: white; padding: 25px; border-radius: 10px; text-align: center; }
+        canvas#sig-canvas { border: 1px solid #333; cursor: crosshair; background: #fff; }
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <div>
+            <input type="file" id="file-input" accept="application/pdf" />
+        </div>
+        
+        <div class="nav-controls">
+            <button id="prev-page" disabled>Anterior</button>
+            <span id="page-info">Página 0 / 0</span>
+            <button id="next-page" disabled>Siguiente</button>
+        </div>
+
+        <div>
+            <button id="download-btn" disabled>⬇ Descargar Final</button>
+        </div>
+    </div>
+
+    <div id="pdf-wrapper">
+        <canvas id="pdf-render"></canvas>
+        <div id="selection-box"></div>
+    </div>
+
+    <div id="modal">
+        <div class="modal-box">
+            <h3>Dibuja tu firma</h3>
+            <canvas id="sig-canvas" width="400" height="200"></canvas>
+            <br><br>
+            <button class="secondary" onclick="clearSignature()">Borrar</button>
+            <button onclick="applySignature()">Insertar Firma</button>
+            <button class="secondary" onclick="closeModal()">Cancelar</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Variables Globales ---
+        let pdfDocView = null; // Objeto PDF.js
+        let pdfFileBytes = null; // Bytes crudos para edición
+        let pageNum = 1;
+        let totalPages = 0;
+        let scale = 1.5; 
+        let viewport = null;
+        let isRendering = false;
+
+        // Selección
+        let isSelecting = false;
+        let startX, startY;
+        let selectionCoords = { x: 0, y: 0, w: 0, h: 0 };
+
+        // DOM Elements
+        const fileInput = document.getElementById('file-input');
+        const pdfWrapper = document.getElementById('pdf-wrapper');
+        const canvas = document.getElementById('pdf-render');
+        const ctx = canvas.getContext('2d');
+        const selectionBox = document.getElementById('selection-box');
+        const modal = document.getElementById('modal');
+        const sigCanvas = document.getElementById('sig-canvas');
+        const sigCtx = sigCanvas.getContext('2d');
+        const downloadBtn = document.getElementById('download-btn');
+        
+        // Nav Elements
+        const prevBtn = document.getElementById('prev-page');
+        const nextBtn = document.getElementById('next-page');
+        const pageInfo = document.getElementById('page-info');
+
+        // 1. CARGA DEL PDF
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(ev) {
+                const arrayBuffer = ev.target.result;
+                pdfFileBytes = new Uint8Array(arrayBuffer);
+                await loadPdfForViewing(pdfFileBytes);
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        // Función auxiliar para cargar/recargar el visor
+        async function loadPdfForViewing(dataBytes) {
+            // Pasamos una COPIA (.slice) para no bloquear el buffer original
+            const loadingTask = pdfjsLib.getDocument({ data: dataBytes.slice() });
+            pdfDocView = await loadingTask.promise;
+            
+            totalPages = pdfDocView.numPages;
+            pageNum = 1; // Reset a página 1 al cargar nuevo doc
+            
+            updateUIState();
+            renderPage(pageNum);
+            pdfWrapper.style.display = 'block';
+        }
+
+        // 2. RENDERIZADO Y NAVEGACIÓN
+        async function renderPage(num) {
+            isRendering = true;
+            
+            // Ocultar caja de selección al cambiar de página
+            selectionBox.style.display = 'none';
+
+            const page = await pdfDocView.getPage(num);
+            viewport = page.getViewport({ scale: scale });
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            const renderContext = {
+                canvasContext: ctx,
+                viewport: viewport
+            };
+            
+            await page.render(renderContext).promise;
+            isRendering = false;
+            updateUIState();
+        }
+
+        function updateUIState() {
+            pageInfo.textContent = `Página ${pageNum} / ${totalPages}`;
+            prevBtn.disabled = pageNum <= 1;
+            nextBtn.disabled = pageNum >= totalPages;
+            downloadBtn.disabled = !pdfFileBytes;
+        }
+
+        // Eventos de botones Next/Prev
+        prevBtn.addEventListener('click', () => {
+            if (pageNum <= 1 || isRendering) return;
+            pageNum--;
+            renderPage(pageNum);
+        });
+
+        nextBtn.addEventListener('click', () => {
+            if (pageNum >= totalPages || isRendering) return;
+            pageNum++;
+            renderPage(pageNum);
+        });
+
+        // 3. INTERACCIÓN MOUSE (Seleccionar área)
+        pdfWrapper.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            startX = e.clientX - rect.left;
+            startY = e.clientY - rect.top;
+            isSelecting = true;
+            selectionBox.style.display = 'block';
+            updateBox(startX, startY, 0, 0);
+        });
+
+        pdfWrapper.addEventListener('mousemove', (e) => {
+            if (!isSelecting) return;
+            const rect = canvas.getBoundingClientRect();
+            const currX = e.clientX - rect.left;
+            const currY = e.clientY - rect.top;
+            updateBox(startX, startY, currX - startX, currY - startY);
+        });
+
+        pdfWrapper.addEventListener('mouseup', (e) => {
+            if (!isSelecting) return;
+            isSelecting = false;
+            
+            const style = window.getComputedStyle(selectionBox);
+            selectionCoords.x = parseFloat(style.left);
+            selectionCoords.y = parseFloat(style.top);
+            selectionCoords.w = parseFloat(style.width);
+            selectionCoords.h = parseFloat(style.height);
+
+            // Evitar clics accidentales pequeños
+            if (selectionCoords.w > 20 && selectionCoords.h > 20) {
+                openModal();
+            } else {
+                selectionBox.style.display = 'none';
+            }
+        });
+
+        function updateBox(x, y, w, h) {
+            selectionBox.style.left = (w < 0 ? x + w : x) + 'px';
+            selectionBox.style.top = (h < 0 ? y + h : y) + 'px';
+            selectionBox.style.width = Math.abs(w) + 'px';
+            selectionBox.style.height = Math.abs(h) + 'px';
+        }
+
+        // 4. FIRMA (CANVAS)
+        let isDrawing = false;
+        function openModal() { modal.style.display = 'flex'; clearSignature(); }
+        function closeModal() { modal.style.display = 'none'; selectionBox.style.display = 'none'; }
+        function clearSignature() { sigCtx.clearRect(0,0,sigCanvas.width, sigCanvas.height); }
+
+        sigCanvas.addEventListener('mousedown', (e) => { isDrawing = true; sigCtx.beginPath(); sigCtx.moveTo(e.offsetX, e.offsetY); });
+        sigCanvas.addEventListener('mousemove', (e) => { if (isDrawing) { sigCtx.lineTo(e.offsetX, e.offsetY); sigCtx.stroke(); } });
+        sigCanvas.addEventListener('mouseup', () => isDrawing = false);
+
+        // 5. APLICAR FIRMA
+        async function applySignature() {
+            if (!pdfFileBytes) return;
+
+            const pngImageBytes = sigCanvas.toDataURL('image/png');
+            
+            // Cargar doc con pdf-lib
+            const pdfDoc = await PDFLib.PDFDocument.load(pdfFileBytes);
+            const pngImage = await pdfDoc.embedPng(pngImageBytes);
+            
+            // OBTENER LA PÁGINA ACTUAL CORRECTA (pageNum - 1 porque es array 0-indexado)
+            const pageIndex = pageNum - 1;
+            const page = pdfDoc.getPages()[pageIndex];
+
+            // Coordenadas
+            const { width, height } = page.getSize();
+            const scaleFactorX = width / viewport.width; 
+            const scaleFactorY = height / viewport.height;
+
+            const pdfX = selectionCoords.x * scaleFactorX;
+            const pdfY = height - ((selectionCoords.y + selectionCoords.h) * scaleFactorY);
+            const pdfW = selectionCoords.w * scaleFactorX;
+            const pdfH = selectionCoords.h * scaleFactorY;
+
+            page.drawImage(pngImage, {
+                x: pdfX,
+                y: pdfY,
+                width: pdfW,
+                height: pdfH
+            });
+
+            // Guardar
+            pdfFileBytes = await pdfDoc.save();
+            
+            // Recargar visualizador manteniendo la página actual
+            // Nota: Recargamos todo el doc para ver la firma renderizada
+            const loadingTask = pdfjsLib.getDocument({ data: pdfFileBytes.slice() });
+            pdfDocView = await loadingTask.promise;
+            
+            // Volvemos a renderizar la MISMA página donde estábamos
+            await renderPage(pageNum);
+
+            // Preparar botón de descarga
+            const blob = new Blob([pdfFileBytes], { type: 'application/pdf' });
+            const url = URL.createObjectURL(blob);
+            downloadBtn.onclick = () => {
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'documento_firmado.pdf';
+                link.click();
+            };
+            downloadBtn.disabled = false;
+
+            closeModal();
+        }
+    </script>
+</body>
+</html>
